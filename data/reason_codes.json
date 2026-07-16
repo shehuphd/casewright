@@ -1,0 +1,200 @@
+{
+  "visa": {
+    "10.4": {
+      "scheme": "visa",
+      "code": "10.4",
+      "label": "Other Fraud, Card Absent Environment",
+      "issuer_claim": "Cardholder denies authorising a card-not-present transaction.",
+      "logic": "ANY_TWO",
+      "non_representable": false,
+      "requirements": [
+        "Evidence the cardholder used the same card and same shipping address in two prior undisputed transactions with this merchant, completed more than 120 days but less than 365 days before the disputed transaction",
+        "Evidence the cardholder is in possession of and using the merchandise (e.g. signed-in account activity post-delivery, social media post tagging the merchant)",
+        "For digital goods: device fingerprint, IP address, geolocation, and customer account login matching prior undisputed transactions",
+        "Proof of delivery to the cardholder's verified billing address (not just shipping address) with signature confirmation"
+      ]
+    },
+    "10.5": {
+      "scheme": "visa",
+      "code": "10.5",
+      "label": "Visa Fraud Monitoring Program",
+      "issuer_claim": "Transaction flagged under Visa's fraud monitoring program.",
+      "logic": "ALL",
+      "non_representable": true,
+      "non_representable_note": "This reason code generally cannot be represented. Recommend accept_liability unless the merchant can prove the transaction was miscoded by the issuer.",
+      "requirements": []
+    },
+    "12.5": {
+      "scheme": "visa",
+      "code": "12.5",
+      "label": "Incorrect Amount",
+      "issuer_claim": "The amount charged does not match the amount the cardholder authorised.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "The signed receipt, terms of service, or order confirmation showing the amount the cardholder agreed to",
+        "Documentation showing the amount charged matches that agreed amount",
+        "If a tip, gratuity, or adjustment was added, evidence the cardholder authorised it"
+      ]
+    },
+    "12.6.1": {
+      "scheme": "visa",
+      "code": "12.6.1",
+      "label": "Duplicate Processing",
+      "issuer_claim": "The same transaction was processed more than once.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "Evidence the two transactions are for two separate purchases (e.g. different order IDs, different items, different services rendered)",
+        "Documentation of each purchase event (separate invoices, separate delivery confirmations, separate service dates)",
+        "Transaction timestamps and authorisation codes for each charge"
+      ]
+    },
+    "13.1": {
+      "scheme": "visa",
+      "code": "13.1",
+      "label": "Merchandise / Services Not Received",
+      "issuer_claim": "Cardholder paid but never received the goods or services.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "Proof of delivery: tracking number, carrier name, and confirmation of delivery to the cardholder's address",
+        "For services: evidence the service was rendered on or before the expected date (booking confirmation, attendance log, access logs)",
+        "Date of delivery / service rendered is on or before the chargeback date",
+        "The delivery address materially matches the address provided by the cardholder at purchase"
+      ]
+    },
+    "13.2": {
+      "scheme": "visa",
+      "code": "13.2",
+      "label": "Cancelled Recurring Transaction",
+      "issuer_claim": "Cardholder cancelled a recurring subscription but was still charged.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "Terms of service disclosing the recurring billing arrangement and the cancellation method",
+        "Evidence the cardholder was notified of the upcoming charge (typically 7+ days in advance) for transactions over a defined threshold",
+        "No record of the cardholder having submitted a cancellation request prior to the billing date",
+        "Evidence of the cardholder's original opt-in to the recurring arrangement"
+      ]
+    },
+    "13.3": {
+      "scheme": "visa",
+      "code": "13.3",
+      "label": "Not as Described or Defective Merchandise",
+      "issuer_claim": "Cardholder received the goods but they are materially not as described or defective.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "The merchant's published description of the item the cardholder purchased",
+        "Evidence the item delivered matches that description (photos, specs, serial number match)",
+        "Evidence the merchant offered a return/refund route and the cardholder did not use it, OR evidence the cardholder used and retained the merchandise after raising the complaint"
+      ]
+    },
+    "13.6": {
+      "scheme": "visa",
+      "code": "13.6",
+      "label": "Credit Not Processed",
+      "issuer_claim": "The merchant agreed to a refund but never processed it.",
+      "logic": "EITHER",
+      "non_representable": false,
+      "requirements": [
+        "Evidence that a refund was processed (refund transaction ID, date, amount)",
+        "Evidence that no refund was ever agreed (merchant's refund policy and absence of any refund commitment in cardholder communications)"
+      ]
+    },
+    "13.7": {
+      "scheme": "visa",
+      "code": "13.7",
+      "label": "Cancelled Merchandise / Services",
+      "issuer_claim": "Cardholder cancelled the purchase per the merchant's policy but was charged.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "The merchant's cancellation policy as displayed at point of sale",
+        "Evidence the cardholder agreed to that policy (e.g. checkbox click record, signed terms)",
+        "Evidence the cardholder either did not cancel within the policy window, or cancelled outside the refundable period"
+      ]
+    }
+  },
+  "mastercard": {
+    "4837": {
+      "scheme": "mastercard",
+      "code": "4837",
+      "label": "No Cardholder Authorisation",
+      "issuer_claim": "Cardholder denies authorising the transaction (card-not-present fraud equivalent).",
+      "logic": "ANY_TWO",
+      "non_representable": false,
+      "requirements": [
+        "AVS match (full address) AND CVV match on the disputed transaction",
+        "3D Secure authentication completed successfully (Mastercard SecureCode / Identity Check)",
+        "Two prior undisputed transactions from the same cardholder with this merchant in the past 12 months, with matching billing details",
+        "Proof of delivery to the cardholder's billing address with signature"
+      ]
+    },
+    "4853": {
+      "scheme": "mastercard",
+      "code": "4853",
+      "label": "Cardholder Dispute (Goods / Services Not Provided)",
+      "issuer_claim": "Goods or services were not provided as agreed.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "Proof of delivery or service provision (tracking, confirmation, access log)",
+        "Evidence the goods or services materially match what was advertised",
+        "Either: no contact from the cardholder attempting to resolve the issue before the chargeback, OR documentation showing the merchant attempted resolution and the cardholder refused"
+      ]
+    },
+    "4855": {
+      "scheme": "mastercard",
+      "code": "4855",
+      "label": "Goods / Services Not Provided",
+      "issuer_claim": "Paid for goods or services that were never delivered or rendered.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "Proof of delivery (tracking + carrier confirmation) or proof of service rendered (access logs, attendance, completed booking)",
+        "Date of delivery / service is before the chargeback date",
+        "Delivery address matches the cardholder's records"
+      ]
+    },
+    "4859": {
+      "scheme": "mastercard",
+      "code": "4859",
+      "label": "No-Show / Addendum",
+      "issuer_claim": "Cardholder was charged a no-show fee, late cancellation fee, or addendum charge that they dispute.",
+      "logic": "ALL",
+      "non_representable": false,
+      "requirements": [
+        "Evidence of the cardholder's original reservation or booking",
+        "The merchant's no-show / cancellation policy as disclosed at booking",
+        "Evidence the cardholder either failed to show or cancelled outside the policy window",
+        "Evidence the fee charged matches the policy disclosed"
+      ]
+    },
+    "4863": {
+      "scheme": "mastercard",
+      "code": "4863",
+      "label": "Cardholder Does Not Recognise - Potential Fraud",
+      "issuer_claim": "Cardholder does not recognise the transaction (may not be fraud — could be a confusing descriptor).",
+      "logic": "ANY_ONE",
+      "non_representable": false,
+      "requirements": [
+        "Evidence the merchant's billing descriptor matches the merchant name the cardholder would recognise",
+        "AVS + CVV match on the disputed transaction",
+        "Prior undisputed transactions from the same cardholder with this merchant",
+        "Cardholder's IP / device / account login matching prior undisputed sessions"
+      ]
+    },
+    "4870": {
+      "scheme": "mastercard",
+      "code": "4870",
+      "label": "Chip Liability Shift",
+      "issuer_claim": "Counterfeit card used at a non-chip-enabled terminal (card-present only).",
+      "logic": "ALL",
+      "non_representable": true,
+      "non_representable_note": "This is a card-present reason code. For CNP-focused acquirers, recommend accept_liability and flag the merchant for terminal upgrade.",
+      "requirements": []
+    }
+  }
+}

@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Casewright — Chargeback Representment Workbench</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232F6FFF'/><text x='16' y='22.5' font-family='system-ui,sans-serif' font-size='21' font-weight='700' fill='white' text-anchor='middle'>C</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0B0C10;
+      --card: #16181D;
+      --card-inner: #0F1116;
+      --border: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.16);
+      --text-1: #F5F6F7;
+      --text-2: #D6D9DE;
+      --text-3: #A6ACB6;
+      --text-4: #8A8F98;
+      --text-5: #6E7480;
+      --blue: #5B8CFF;
+      --blue-bg: rgba(47,111,255,0.14);
+      --blue-border: rgba(47,111,255,0.32);
+      --blue-brand: #2F6FFF;
+      --orange: #FF9A5A;
+      --green-label: #7FA88F;
+      --red: #FF6A5C;
+      --green: #4ADE80;
+      --green-bg: rgba(34,197,94,0.15);
+      --green-border: rgba(34,197,94,0.35);
+      --amber: #FCD34D;
+      --amber-bg: rgba(245,183,49,0.15);
+      --amber-border: rgba(245,183,49,0.35);
+      --red-bg: rgba(255,106,92,0.15);
+      --red-border: rgba(255,106,92,0.35);
+      --grey-bg: rgba(110,116,128,0.15);
+      --grey-border: rgba(110,116,128,0.35);
+      --grey-text: #9CA3AF;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-2);
+      font-family: 'Manrope', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a { color: var(--blue); }
+    a:hover { color: #7FA3FF; }
+    ::selection { background: rgba(91,140,255,0.35); }
+
+    /* ── Header ── */
+    #app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px clamp(20px,4vw,48px);
+      background: #101218;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      gap: 12px;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .logo-mark {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--blue-brand); display: flex; align-items: center;
+      justify-content: center; font-family: 'Space Grotesk', sans-serif;
+      color: #fff; font-weight: 700; font-size: 16px; flex: none;
+    }
+    .logo-text {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 19px; letter-spacing: 0.02em;
+      color: var(--text-1); line-height: 1;
+    }
+    .header-subtitle { font-size: 12px; color: var(--text-5); letter-spacing: 0.02em; flex: 1; text-align: right; }
+    #settings-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-4); border-radius: 8px; padding: 6px 12px;
+      font-family: 'Manrope', sans-serif; font-size: 12px; font-weight: 600;
+      cursor: pointer; white-space: nowrap; transition: border-color .15s, color .15s;
+    }
+    #settings-btn:hover { border-color: var(--border-hover); color: var(--text-2); }
+
+    /* ── Main grid ── */
+    #main-grid {
+      display: grid;
+      grid-template-columns: 260px minmax(560px,1.4fr) 320px;
+      gap: 0;
+      padding: 0 clamp(20px,4vw,48px);
+      max-width: 1680px;
+      min-width: 1180px;
+      margin: 0 auto;
+      align-items: stretch;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    /* ── Left panel ── */
+    #left-panel {
+      display: flex; flex-direction: column; gap: 14px;
+      overflow-y: auto; padding: 24px 16px 40px 0;
+      border-right: 1px solid var(--border);
+    }
+    .panel-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 20px; color: var(--text-1);
+    }
+    #case-search {
+      width: 100%; padding: 8px 10px 8px 32px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14); background: var(--card-inner);
+      font-family: 'Manrope', sans-serif; font-size: 13px; color: var(--text-2);
+      box-sizing: border-box; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='7' stroke='%236E7480' stroke-width='2'/%3E%3Cpath d='m16.5 16.5 4 4' stroke='%236E7480' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 10px center;
+    }
+    #case-search:focus { outline: none; border-color: var(--blue); }
+    #case-search::placeholder { color: var(--text-5); }
+    .queue-empty { font-size: 13px; color: var(--text-5); }
+    #case-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .case-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .case-card:hover { border-color: var(--border-hover); background: #1a1c22; }
+    .case-card.selected { border-color: var(--blue-brand); background: rgba(47,111,255,0.07); }
+    .case-card .cid {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 15px; color: var(--text-1);
+    }
+    .case-card .merchant { font-size: 13px; color: var(--text-3); margin-top: 2px; }
+    .case-card .card-meta {
+      display: flex; justify-content: space-between; align-items: center; margin-top: 8px;
+    }
+    .scheme-chip {
+      font-size: 11px; padding: 2px 8px; border-radius: 6px;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      color: var(--text-5); white-space: nowrap;
+    }
+    .amount-label { color: var(--text-2); font-weight: 600; font-size: 13px; }
+    #clear-btn {
+      padding: 4px 10px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 11px; color: var(--red);
+      background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+      transition: background .15s, border-color .15s; white-space: nowrap; flex: none;
+    }
+    #clear-btn:hover { background: rgba(255,106,92,0.08); border-color: rgba(255,106,92,0.25); }
+
+    /* ── Badge styles ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 5px 12px; border-radius: 8px;
+      font-size: 13px; font-weight: 600; white-space: nowrap; border: 1px solid;
+    }
+    .badge-lg { padding: 7px 16px; font-size: 14px; }
+    .badge-sm { padding: 3px 8px; font-size: 11px; border-radius: 6px; }
+
+    .badge-represent { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+    .badge-accept_liability { background: var(--red-bg); border-color: var(--red-border); color: #FF8A7E; }
+    .badge-request_more_evidence { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+    .badge-unprocessed { background: var(--grey-bg); border-color: var(--grey-border); color: var(--grey-text); }
+
+    .status-satisfied { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+    .status-partial { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+    .status-missing { background: var(--red-bg); border-color: var(--red-border); color: #FF8A7E; }
+    .status-needs_review { background: var(--grey-bg); border-color: var(--grey-border); color: var(--grey-text); }
+    .status-not_applicable { background: var(--grey-bg); border-color: var(--grey-border); color: var(--grey-text); }
+    .status-invalid { background: var(--red-bg); border-color: var(--red-border); color: #FF8A7E; }
+
+    .conf-High { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+    .conf-Medium { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+    .conf-Low { background: var(--red-bg); border-color: var(--red-border); color: #FF8A7E; }
+    .conf-override { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.22); color: var(--text-1); }
+
+    /* ── Middle panel ── */
+    #middle-panel {
+      display: flex; flex-direction: column; gap: 20px; min-width: 0;
+      overflow-y: auto; padding: 24px 24px 40px;
+    }
+
+    #empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; padding: 80px 40px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      color: var(--text-5); font-size: 14px;
+    }
+    #empty-state .empty-icon { font-size: 36px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .card-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600; font-size: 12px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .label-blue { color: var(--blue); }
+    .label-orange { color: var(--orange); }
+    .label-green { color: var(--green-label); }
+    .label-grey { color: var(--text-5); }
+
+    .hidden { display: none !important; }
+
+    #case-header { min-width: 0; }
+    #case-header .case-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 30px; color: var(--text-1); line-height: 1.1;
+    }
+    #case-header .case-meta { font-size: 14px; color: var(--text-4); margin-top: 6px; }
+    #case-header .case-meta strong { color: var(--text-2); }
+
+    /* Evidence checklist table — single flat grid so all columns align across rows */
+    #checklist-card { padding: 0; overflow: hidden; flex-shrink: 0; }
+    .checklist-header { padding: 20px 24px 12px; }
+    .checklist-table {
+      display: grid;
+      grid-template-columns: 1.8fr 1fr 1.2fr 2.2fr;
+      border-top: 1px solid var(--border);
+    }
+    .checklist-col-hdr {
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      color: var(--text-5); font-weight: 600;
+    }
+    .checklist-cell {
+      padding: 14px 12px; font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .checklist-table > :nth-child(4n+1) { padding-left: 24px; }
+    .checklist-table > :nth-child(4n) { padding-right: 24px; }
+    .checklist-table .checklist-cell:nth-last-child(-n+4) { border-bottom: none; }
+    .checklist-req { color: var(--text-2); font-weight: 500; font-size: 13.5px; }
+    .checklist-notes { color: var(--text-3); }
+    .evidence-link { color: var(--blue); text-decoration: underline; cursor: pointer; font-size: 13px; display: inline-block; }
+    .evidence-pointer { font-size: 11px; color: var(--text-5); margin-top: 2px; }
+
+    /* Rationale textarea */
+    textarea {
+      width: 100%; font-size: 14px; font-family: 'Manrope', sans-serif;
+      line-height: 1.5; color: var(--text-2); background: var(--card-inner);
+      padding: 11px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14);
+      resize: none; overflow: hidden; box-sizing: border-box; transition: border-color .15s;
+    }
+    textarea:focus { outline: none; border-color: var(--blue); }
+
+    /* Missing evidence list */
+    .missing-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .missing-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 14px; background: var(--card-inner);
+      border: 1px solid var(--amber-border); border-radius: 8px;
+      font-size: 13px; color: var(--text-2);
+    }
+    .missing-dot { color: var(--amber); flex: none; margin-top: 1px; }
+
+    /* Uncertainties / notes list */
+    .note-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+    .note-item { font-size: 13px; color: var(--text-3); padding-left: 12px; border-left: 2px solid var(--border); }
+
+    /* ── Right panel ── */
+    #right-panel {
+      display: flex; flex-direction: column; gap: 20px; min-width: 0;
+      overflow-y: auto; padding: 24px 0 40px 24px;
+      border-left: 1px solid var(--border);
+    }
+
+    #action-buttons { display: flex; gap: 10px; }
+    .btn-primary {
+      flex: 1; padding: 11px 16px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 13.5px; color: #fff;
+      background: var(--blue-brand); border: 1px solid var(--blue-brand);
+      border-radius: 8px; cursor: pointer; transition: background .15s;
+    }
+    .btn-primary:hover { background: #2559D6; border-color: #2559D6; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      flex: 1; padding: 11px 16px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 13.5px; color: var(--text-1);
+      background: transparent; border: 1px solid var(--border-hover);
+      border-radius: 8px; cursor: pointer; transition: background .15s, border-color .15s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.3); }
+
+    .meta-card { background: var(--card-inner); }
+    .meta-rows { margin-top: 10px; display: flex; flex-direction: column; gap: 7px; }
+    .meta-row {
+      display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px;
+      border-bottom: 1px dashed var(--border); padding-bottom: 6px;
+    }
+    .meta-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .meta-row .ml { color: var(--text-5); }
+    .meta-row .mv { color: var(--text-2); font-weight: 500; text-align: right; }
+    .mv-match { color: var(--green); }
+    .mv-fail { color: #FF8A7E; }
+
+    .doc-item {
+      background: var(--card-inner); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px; margin-top: 10px;
+    }
+    .doc-item:first-child { margin-top: 0; }
+    .doc-name { font-size: 13.5px; font-weight: 600; color: var(--blue); text-decoration: underline; cursor: pointer; }
+    .doc-name:hover { opacity: 0.8; }
+    .doc-summary { font-size: 13px; color: var(--text-3); margin-top: 8px; line-height: 1.5; }
+    .doc-status { font-size: 11px; margin-top: 4px; }
+    .doc-status-ok { color: var(--green-label); }
+    .doc-status-warn { color: var(--amber); }
+    .doc-status-err { color: #FF8A7E; }
+    .doc-refs { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .doc-ref-entry { display: flex; flex-direction: column; gap: 4px; }
+    .doc-ref-text { font-size: 12px; color: var(--text-3); line-height: 1.5; }
+
+    select {
+      width: 100%; padding: 9px 10px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14); background: var(--card-inner);
+      font-family: 'Manrope', sans-serif; font-size: 13px; color: var(--text-2);
+      box-sizing: border-box;
+    }
+    select:focus { outline: none; border-color: var(--blue); }
+    select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    #notes-card-inner { padding: 0; overflow: hidden; }
+    .notes-toggle {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 18px; cursor: pointer; border: none; background: none;
+      width: 100%; text-align: left;
+    }
+    .notes-body { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 6px; }
+    .notes-row { font-size: 12.5px; line-height: 1.6; border-top: 1px solid var(--border); padding-top: 8px; }
+    .notes-row .nl { color: var(--text-5); }
+    .notes-row .nv { color: var(--text-2); }
+
+    /* ── Settings modal ── */
+    #modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; backdrop-filter: blur(4px);
+    }
+    #settings-modal {
+      background: var(--card); border: 1px solid var(--border-hover);
+      border-radius: 16px; padding: 32px; width: 440px; max-width: 90vw;
+    }
+    #settings-modal h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 22px; color: var(--text-1); margin-bottom: 6px;
+    }
+    #settings-modal p { font-size: 13px; color: var(--text-4); margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-4); margin-bottom: 6px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .form-group input {
+      width: 100%; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.14); background: var(--card-inner);
+      font-family: 'Manrope', sans-serif; font-size: 14px; color: var(--text-2);
+      box-sizing: border-box;
+    }
+    .form-group input:focus { outline: none; border-color: var(--blue); }
+    .modal-footer { display: flex; gap: 10px; margin-top: 24px; }
+    .btn-ghost {
+      flex: 1; padding: 11px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 14px; color: var(--text-4);
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer;
+    }
+    .modal-key-preview {
+      font-size: 12px; color: var(--text-5); margin-top: 4px;
+    }
+    .modal-error {
+      background: var(--red-bg); border: 1px solid var(--red-border);
+      color: #FF8A7E; border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; margin-bottom: 16px; display: none;
+    }
+
+    /* Inline override confirmation */
+    .override-confirm {
+      display: none; margin-top: 10px; padding: 12px 14px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border-hover);
+      border-radius: 8px; font-size: 13px; color: var(--text-3);
+    }
+    .override-confirm.visible { display: block; }
+    .override-confirm-btns { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-confirm-yes {
+      flex: 1; padding: 8px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 13px; color: #fff;
+      background: var(--blue-brand); border: 1px solid var(--blue-brand);
+      border-radius: 8px; cursor: pointer;
+    }
+    .btn-confirm-no {
+      flex: 1; padding: 8px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 13px; color: var(--text-3);
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer;
+    }
+    .btn-confirm-no:hover { border-color: var(--border-hover); }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+      animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px;
+    }
+
+    /* Alert banner */
+    #alert-banner {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      background: #2a0f0d; border: 1px solid var(--red-border);
+      color: #FF8A7E; padding: 10px 20px; border-radius: 8px;
+      font-size: 13px; z-index: 9999; display: none; max-width: 600px; text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+
+<div id="alert-banner"></div>
+
+<!-- Settings modal -->
+<div id="modal-overlay" class="hidden" onclick="if(event.target===this)closeSettings()">
+  <div id="settings-modal">
+    <h2>API Configuration</h2>
+    <p>Enter your OpenAI or Anthropic API key to enable case analysis. Your key is saved locally to <code>.env</code> and never sent anywhere except the LLM provider.</p>
+    <div id="modal-error" class="modal-error"></div>
+    <div class="form-group">
+      <label>Provider</label>
+      <select id="s-provider">
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>API Key</label>
+      <input type="password" id="s-api-key" placeholder="Paste your API key here">
+      <div class="modal-key-preview" id="s-key-preview"></div>
+    </div>
+    <div class="form-group">
+      <label>Text model</label>
+      <select id="s-text-model" disabled>
+        <option value="">— verify a key to load models —</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeSettings()">Cancel</button>
+      <button id="modal-save-btn" class="btn-primary" onclick="saveSettings()" style="flex:2">Save and continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header id="app-header">
+  <div class="logo-area">
+    <div class="logo-mark">C</div>
+    <div class="logo-text">CASEWRIGHT</div>
+  </div>
+  <div class="header-subtitle">Chargeback representment workbench</div>
+  <button id="settings-btn" onclick="openSettings()">⚙&nbsp; Settings</button>
+</header>
+
+<!-- Main grid -->
+<div id="main-grid">
+
+  <!-- Left: Case queue -->
+  <div id="left-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div class="panel-title">Case queue</div>
+      <button id="clear-btn" onclick="clearWorkups()">Clear all workups</button>
+    </div>
+    <input type="search" id="case-search" placeholder="Search cases…" oninput="filterCases(this.value)">
+    <div id="case-list"><div style="color:var(--text-5);font-size:13px">Loading cases…</div></div>
+  </div>
+
+  <!-- Middle: Case workup -->
+  <div id="middle-panel">
+    <div id="empty-state">
+      <div class="empty-icon">📋</div>
+      <div>Select a case from the queue to begin</div>
+    </div>
+    <div id="case-header" class="hidden"></div>
+    <div id="rec-card" class="card hidden"></div>
+    <div id="checklist-card" class="hidden"></div>
+    <div id="rationale-card" class="card hidden"></div>
+    <div id="missing-card" class="card hidden"></div>
+  </div>
+
+  <!-- Right: Sidebar -->
+  <div id="right-panel">
+    <div id="action-buttons" class="hidden">
+      <button id="run-btn" class="btn-primary" onclick="runAnalysis()">Run analysis</button>
+      <button id="export-btn" class="btn-secondary" onclick="exportZip()">Export .ZIP</button>
+    </div>
+    <div id="override-card" class="card hidden"></div>
+    <div id="meta-card" class="card meta-card hidden"></div>
+    <div id="evidence-card" class="card hidden"></div>
+    <div id="notes-card" class="card hidden" style="padding:0;overflow:hidden;"></div>
+  </div>
+
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const S = {
+  cases: [],
+  caseFilter: '',
+  selectedId: null,
+  detail: null,   // { case, rule, workup, amount_display }
+  settings: null,
+  analyzing: new Set(),
+  notesOpen: false,
+  uncertOpen: false,
+  analystNotesOpen: false,
+};
+
+let rationaleTimer = null;
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: r.statusText }));
+    throw new Error(err.error || r.statusText);
+  }
+  return r.json();
+}
+
+function showAlert(msg, ms = 5000) {
+  const el = document.getElementById('alert-banner');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, ms);
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+function actionLabel(action) {
+  return { represent: 'Represent', accept_liability: 'Accept liability', request_more_evidence: 'Request more evidence' }[action] || action || 'Unprocessed';
+}
+
+function statusLabel(s) {
+  return { satisfied: 'Satisfied', partial: 'Partial', missing: 'Missing', needs_review: 'Needs review', not_applicable: 'N/A', invalid: 'Invalid' }[s] || s;
+}
+
+function schemeName(s) {
+  return { visa: 'Visa', mastercard: 'Mastercard' }[s] || s;
+}
+
+function avsMeta(v) {
+  if (!v) return { text: 'N/A', cls: '' };
+  const ok = v === 'Y' || v.toLowerCase() === 'match';
+  return { text: ok ? 'Match' : (v === 'N' ? 'No match' : v), cls: ok ? 'mv-match' : 'mv-fail' };
+}
+
+function cvvMeta(v) {
+  if (!v) return { text: 'N/A', cls: '' };
+  const ok = v === 'M' || v.toLowerCase() === 'match';
+  return { text: ok ? 'Match' : (v === 'N' ? 'No match' : v), cls: ok ? 'mv-match' : 'mv-fail' };
+}
+
+function tdsMeta(v) {
+  if (!v) return { text: 'N/A', cls: '' };
+  const ok = v === 'authenticated' || v === 'frictionless';
+  return { text: v.replace(/_/g,' '), cls: ok ? 'mv-match' : '' };
+}
+
+// ── Initialise ────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    S.settings = await api('GET', '/api/settings');
+    updateSettingsModal(S.settings);
+    if (!S.settings.api_key_set) openSettings();
+
+    const res = await api('GET', '/api/cases');
+    if (res.validation_errors && res.validation_errors.length) {
+      showAlert('Validation errors in cases.json: ' + res.validation_errors.map(e => e.case_id).join(', '));
+    }
+    S.cases = res.cases || [];
+
+    // Restore spinner state for any analyses still running on the server
+    try {
+      const { running } = await api('GET', '/api/analyses/running');
+      for (const caseId of (running || [])) {
+        if (S.cases.find(c => c.case_id === caseId)) {
+          S.analyzing.add(caseId);
+          pollAnalysis(caseId);
+        }
+      }
+    } catch (_) {}
+
+    renderQueue();
+
+    if (S.cases.length > 0) {
+      const urlId = new URLSearchParams(window.location.search).get('case');
+      const startId = (urlId && S.cases.find(c => c.case_id === urlId))
+        ? urlId
+        : S.cases[0].case_id;
+      await selectCase(startId, false);
+    }
+  } catch (e) {
+    showAlert('Init error: ' + e.message);
+  }
+}
+
+function pollAnalysis(caseId) {
+  const tick = async () => {
+    if (!S.analyzing.has(caseId)) return;
+    try {
+      const { running } = await api('GET', '/api/analyses/running');
+      if (!(running || []).includes(caseId)) {
+        S.analyzing.delete(caseId);
+        const listRes = await api('GET', '/api/cases');
+        S.cases = listRes.cases || [];
+        renderQueue();
+        if (S.selectedId === caseId) {
+          S.detail = await api('GET', `/api/cases/${encodeURIComponent(caseId)}`);
+          renderWorkup();
+        }
+      } else {
+        setTimeout(tick, 4000);
+      }
+    } catch (_) {
+      setTimeout(tick, 4000);
+    }
+  };
+  setTimeout(tick, 4000);
+}
+
+window.addEventListener('popstate', e => {
+  const id = (e.state && e.state.caseId) || new URLSearchParams(window.location.search).get('case');
+  if (id && id !== S.selectedId) selectCase(id, false);
+});
+
+// ── Case queue ────────────────────────────────────────────────────────────────
+function filterCases(query) {
+  S.caseFilter = query.trim().toLowerCase();
+  renderQueue();
+}
+
+function renderQueue() {
+  const el = document.getElementById('case-list');
+  const q = S.caseFilter;
+  const visible = q
+    ? S.cases.filter(c =>
+        c.case_id.toLowerCase().includes(q) ||
+        c.merchant_name.toLowerCase().includes(q) ||
+        c.reason_code.toLowerCase().includes(q) ||
+        (c.reason_code_label || '').toLowerCase().includes(q)
+      )
+    : S.cases;
+  if (!visible.length) {
+    el.innerHTML = `<div class="queue-empty">${q ? 'No cases match your search.' : 'No cases found.'}</div>`;
+    return;
+  }
+  el.innerHTML = visible.map(c => {
+    const sel = c.case_id === S.selectedId ? ' selected' : '';
+    const action = c.recommended_action;
+    const isAnalyzing = S.analyzing.has(c.case_id);
+    const badge = isAnalyzing
+      ? `<span class="badge badge-sm badge-unprocessed"><span class="spinner" style="width:10px;height:10px;border-width:1.5px;margin-right:4px;vertical-align:middle"></span>Analyzing…</span>`
+      : (action
+        ? `<span class="badge badge-sm badge-${esc(action)}">${esc(actionLabel(action))}</span>`
+        : `<span class="badge badge-sm badge-unprocessed">Unprocessed</span>`);
+    return `
+      <div class="case-card${sel}" onclick="selectCase('${esc(c.case_id)}')">
+        <div class="cid">${esc(c.case_id)}</div>
+        <div class="merchant">${esc(c.merchant_name)}</div>
+        <div class="card-meta">
+          <span class="scheme-chip">${esc(schemeName(c.scheme))} ${esc(c.reason_code)}</span>
+          <span class="amount-label">${esc(c.amount_display)}</span>
+        </div>
+        <div style="margin-top:8px">${badge}</div>
+      </div>`;
+  }).join('');
+  const selCard = el.querySelector('.case-card.selected');
+  if (selCard) selCard.scrollIntoView({ block: 'nearest' });
+}
+
+// ── Select case ───────────────────────────────────────────────────────────────
+async function selectCase(caseId, pushState = true) {
+  S.selectedId = caseId;
+  S.uncertOpen = false;
+  S.analystNotesOpen = false;
+  if (pushState) history.pushState({ caseId }, '', `?case=${encodeURIComponent(caseId)}`);
+  renderQueue();
+  try {
+    S.detail = await api('GET', `/api/cases/${encodeURIComponent(caseId)}`);
+    renderWorkup();
+  } catch (e) {
+    showAlert('Failed to load case: ' + e.message);
+  }
+}
+
+// ── Render workup ─────────────────────────────────────────────────────────────
+function renderWorkup() {
+  const { case: c, rule, workup, amount_display } = S.detail;
+
+  document.getElementById('empty-state').style.display = 'none';
+
+  // Action buttons
+  const ab = document.getElementById('action-buttons');
+  ab.classList.remove('hidden');
+  const runBtn = document.getElementById('run-btn');
+  if (S.analyzing.has(c.case_id)) {
+    runBtn.disabled = true;
+    runBtn.innerHTML = '<span class="spinner"></span>Analyzing…';
+  } else {
+    runBtn.disabled = false;
+    runBtn.textContent = workup ? 'Re-run analysis' : 'Run analysis';
+  }
+  document.getElementById('export-btn').style.display = workup ? '' : 'none';
+
+  // Case header
+  const hdr = document.getElementById('case-header');
+  hdr.classList.remove('hidden');
+  const scheme = schemeName(c.scheme);
+  hdr.innerHTML = `
+    <div class="case-title">${esc(c.case_id)} · ${esc(c.transaction.merchant_name)}</div>
+    <div style="margin-top:4px">
+      <a href="/api/rules#${esc(c.scheme.toLowerCase())}-${esc(c.reason_code.replace(/\./g,'-'))}"
+         target="_blank"
+         title="${esc(rule ? `${scheme} ${c.reason_code} — ${rule.label}` : 'View reason-code guide')}"
+         style="font-size:13px">
+        ${esc(scheme)} ${esc(c.reason_code)}
+      </a>
+    </div>
+    <div class="case-meta">
+      ${esc(c.reason_code_label)} · Chargeback <strong>${esc(amount_display)}</strong> filed <strong>${esc(c.chargeback_date)}</strong>
+    </div>`;
+
+  // Case metadata (right panel)
+  const txn = c.transaction;
+  const avs = avsMeta(txn.avs_result);
+  const cvv = cvvMeta(txn.cvv_result);
+  const tds = tdsMeta(txn.three_ds_status || 'N/A');
+  const metaRows = [
+    { label: 'Transaction date', value: txn.transaction_date ? txn.transaction_date.split('T')[0] : '—', cls: '' },
+    { label: 'Amount', value: amount_display, cls: '' },
+    { label: 'AVS result', value: avs.text, cls: avs.cls },
+    { label: 'CVV result', value: cvv.text, cls: cvv.cls },
+    { label: '3DS status', value: tds.text, cls: tds.cls },
+    { label: 'Billing postcode', value: txn.billing_address_postcode || '—', cls: '' },
+    { label: 'Shipping postcode', value: txn.shipping_address_postcode || 'N/A', cls: '' },
+    { label: 'IP address', value: txn.ip_address || '—', cls: '' },
+    { label: 'Device fingerprint', value: txn.device_fingerprint || '—', cls: '' },
+  ];
+  const mc = document.getElementById('meta-card');
+  mc.classList.remove('hidden');
+  mc.innerHTML = `
+    <div class="card-label label-green">Case metadata</div>
+    <div class="meta-rows">
+      ${metaRows.map(r => `
+        <div class="meta-row">
+          <span class="ml">${esc(r.label)}</span>
+          <span class="mv ${esc(r.cls)}">${esc(r.value)}</span>
+        </div>`).join('')}
+    </div>`;
+
+  if (!workup) {
+    renderUnprocessed(c, rule);
+    return;
+  }
+
+  renderProcessed(c, rule, workup);
+}
+
+function renderUnprocessed(c, rule) {
+  // Recommendation card: show issuer allegation + rule summary
+  const rc = document.getElementById('rec-card');
+  rc.classList.remove('hidden');
+  const schemeReqText = rule
+    ? `${schemeName(rule.scheme)} ${rule.code} requires: ${rule.requirements && rule.requirements.length ? rule.requirements.join('; ') : 'see reason-code guide'}`
+    : 'No rule found for this reason code.';
+  rc.innerHTML = `
+    <div style="color:var(--text-4);font-size:14px;margin-bottom:16px">Analysis not yet run for this case.</div>
+    <div class="card-label label-blue" style="margin-bottom:12px">Reason-code summary</div>
+    <div style="font-size:14px;line-height:1.6;color:var(--text-2)">${esc(c.issuer_narrative)}</div>
+    <div style="font-size:14px;line-height:1.6;color:var(--text-3);margin-top:10px">${esc(schemeReqText)}</div>`;
+
+  // Evidence files in right panel
+  renderEvidenceFiles(c, null, null);
+
+  // Hide other sections
+  ['checklist-card','rationale-card','missing-card','override-card','notes-card'].forEach(id => {
+    document.getElementById(id).classList.add('hidden');
+  });
+}
+
+function renderProcessed(c, rule, workup) {
+  const rcs = workup.reason_code_summary || {};
+  const action = workup.recommended_action;
+  const conf = workup.confidence || 'Medium';
+  const ov = workup.analyst_override || { action: 'keep', notes: '', timestamp: null };
+  const hasOverride = ov.action && ov.action !== 'keep';
+  const effectiveAction = hasOverride ? ov.action : action;
+  const confDisplay = hasOverride ? 'Manual override' : `Confidence: ${esc(conf)}`;
+  const confClass = hasOverride ? 'conf-override' : `conf-${esc(conf)}`;
+
+  // Recommendation card
+  const rc = document.getElementById('rec-card');
+  rc.classList.remove('hidden');
+  rc.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge badge-lg badge-${esc(effectiveAction)}">${esc(actionLabel(effectiveAction))}</span>
+      <span class="badge badge-lg ${esc(confClass)}">${esc(confDisplay)}</span>
+    </div>
+    <div style="margin-top:12px;font-size:14px;line-height:1.6;color:var(--text-2)">${esc(workup.justification)}</div>
+    <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)" class="card-label label-blue">Reason-code summary</div>
+    <div style="margin-top:12px;font-size:14px;line-height:1.6;color:var(--text-2)">${esc(rcs.issuer_allegation || c.issuer_narrative)}</div>
+    <div style="margin-top:10px;font-size:14px;line-height:1.6;color:var(--text-3)">${esc(rcs.scheme_requirement_summary || '')}</div>
+`;
+
+  // Evidence checklist
+  const ea = workup.evidence_assessment || [];
+  const cc = document.getElementById('checklist-card');
+  cc.classList.remove('hidden');
+  cc.innerHTML = `
+    <div class="checklist-header">
+      <div class="card-label label-orange">Evidence checklist</div>
+    </div>
+    <div class="checklist-table">
+      <div class="checklist-col-hdr">Requirement</div>
+      <div class="checklist-col-hdr">Status</div>
+      <div class="checklist-col-hdr">Evidence</div>
+      <div class="checklist-col-hdr">Notes</div>
+      ${ea.map(row => `
+        <div class="checklist-cell checklist-req">${esc(row.requirement)}</div>
+        <div class="checklist-cell">
+          <span class="badge badge-sm status-${esc(row.status)}">${esc(statusLabel(row.status))}</span>
+        </div>
+        <div class="checklist-cell">
+          ${row.supporting_document && row.supporting_document !== 'null'
+            ? `<a href="/api/documents/${encodeURIComponent(row.supporting_document)}" target="_blank" class="evidence-link">${esc(row.supporting_document)}</a>${row.pointer ? `<div class="evidence-pointer">${esc(row.pointer)}</div>` : ''}`
+            : `<span style="color:var(--text-5)">—</span>`}
+        </div>
+        <div class="checklist-cell checklist-notes">${esc(row.notes)}</div>`).join('')}
+    </div>`;
+
+  // Rationale
+  const rat = document.getElementById('rationale-card');
+  rat.classList.remove('hidden');
+  rat.innerHTML = `
+    <div class="card-label label-blue">Rationale</div>
+    <div style="margin-top:12px">
+      <textarea id="rationale-text" rows="5" oninput="scheduleRationaleSave();autoResize(this)">${esc(workup.representment_rationale || '')}</textarea>
+    </div>`;
+  setTimeout(() => { const t = document.getElementById('rationale-text'); if (t) autoResize(t); }, 0);
+
+  // Missing evidence
+  const me = workup.request_more_evidence || [];
+  const mc2 = document.getElementById('missing-card');
+  if (action === 'request_more_evidence' && me.length) {
+    mc2.classList.remove('hidden');
+    mc2.innerHTML = `
+      <div class="card-label" style="color:var(--amber)">Evidence requested from merchant</div>
+      <div class="missing-list">
+        ${me.map(item => `<div class="missing-item"><span class="missing-dot">•</span><span>${esc(item)}</span></div>`).join('')}
+      </div>`;
+  } else {
+    mc2.classList.add('hidden');
+  }
+
+  // Evidence files (right panel)
+  renderEvidenceFiles(c, workup, workup.evidence_files);
+
+  // Analyst override (right panel)
+  const ovc = document.getElementById('override-card');
+  ovc.classList.remove('hidden');
+  ovc.innerHTML = `
+    <div class="card-label label-blue">Analyst override</div>
+    <div style="margin-top:6px;font-size:12px;color:var(--text-5);line-height:1.5">Accept the recommendation or override it below.</div>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+      <select id="override-select">
+        <option value="keep" ${ov.action==='keep'?'selected':''}>Keep model recommendation</option>
+        <option value="represent" ${ov.action==='represent'?'selected':''}>Represent</option>
+        <option value="accept_liability" ${ov.action==='accept_liability'?'selected':''}>Accept liability</option>
+        <option value="request_more_evidence" ${ov.action==='request_more_evidence'?'selected':''}>Request more evidence</option>
+      </select>
+      <textarea id="override-notes" placeholder="Analyst notes…" rows="3">${esc(ov.notes || '')}</textarea>
+      <button class="btn-primary" onclick="promptOverride()">Save override</button>
+      <div id="override-confirm" class="override-confirm">
+        <span>Apply override and replace the model recommendation?</span>
+        <div class="override-confirm-btns">
+          <button class="btn-confirm-yes" onclick="saveOverride()">Yes, apply</button>
+          <button class="btn-confirm-no" onclick="cancelOverride()">Cancel</button>
+        </div>
+      </div>
+    </div>
+    ${ov.timestamp ? `<div style="margin-top:10px;font-size:11px;color:var(--text-5)">Last saved: ${esc(ov.timestamp.replace('T',' ').split('.')[0])} UTC</div>` : ''}`;
+
+  // Processing notes (right panel)
+  const pn = workup.processing_notes || {};
+  const nc = document.getElementById('notes-card');
+  nc.classList.remove('hidden');
+  const noteRows = [
+    { label: 'Model used', value: pn.model_used || '—' },
+    { label: 'Provider', value: pn.provider || '—' },
+    { label: 'Token estimate', value: pn.token_estimate ? `~${pn.token_estimate.toLocaleString()} tokens` : '—' },
+    { label: 'Output JSON validation', value: pn.output_json_valid ? 'Valid' : 'Invalid — see errors' },
+    { label: 'Docs processed', value: (pn.documents_processed || []).length },
+    ...(pn.limitations && pn.limitations.length ? pn.limitations.map(l => ({ label: 'Limitation', value: l })) : []),
+    ...(pn.validation_errors && pn.validation_errors.length ? pn.validation_errors.map(e => ({ label: 'Validation error', value: e })) : []),
+  ];
+  nc.innerHTML = `
+    <button class="notes-toggle" onclick="toggleNotes()">
+      <span class="card-label label-grey">Processing notes</span>
+      <span style="font-size:13px;color:var(--text-5)" id="notes-toggle-label">${S.notesOpen ? 'Hide' : 'Show'}</span>
+    </button>
+    <div id="notes-body" class="${S.notesOpen ? 'notes-body' : 'hidden'}">
+      ${noteRows.map(r => `<div class="notes-row"><span class="nl">${esc(r.label)}:</span> <span class="nv">${esc(String(r.value))}</span></div>`).join('')}
+    </div>`;
+}
+
+function renderEvidenceFiles(c, workup, evidenceFiles) {
+  const ec = document.getElementById('evidence-card');
+  ec.classList.remove('hidden');
+  const docs = c.merchant_evidence_documents || [];
+  if (!docs.length) {
+    ec.innerHTML = `<div class="card-label label-orange">Evidence files</div><div style="margin-top:10px;font-size:13px;color:var(--text-5)">No documents attached to this case.</div>`;
+    return;
+  }
+
+  const fileMap = {};
+  if (evidenceFiles) evidenceFiles.forEach(f => { fileMap[f.filename] = f; });
+
+  ec.innerHTML = `<div class="card-label label-orange">Evidence files</div>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+      ${docs.map((name, i) => {
+        const info = fileMap[name];
+        const notFound = info && info.extraction_status === 'not_found';
+        const divider = i < docs.length - 1 ? 'border-bottom:1px solid var(--border);padding-bottom:8px;' : '';
+        return notFound
+          ? `<div style="font-size:13px;color:var(--red);${divider}">${esc(name)} <span style="color:var(--text-5)">— not found</span></div>`
+          : `<a href="/api/documents/${encodeURIComponent(name)}" target="_blank" class="doc-name" style="${divider}">${esc(name)}</a>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  if (!S.selectedId || S.analyzing.has(S.selectedId)) return;
+  if (!S.settings || !S.settings.api_key_set) { openSettings(); return; }
+  const caseId = S.selectedId;
+  S.analyzing.add(caseId);
+  renderQueue();
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Analyzing…';
+
+  try {
+    await api('POST', `/api/cases/${encodeURIComponent(caseId)}/analyze`);
+    const listRes = await api('GET', '/api/cases');
+    S.cases = listRes.cases || [];
+    renderQueue();
+    if (S.selectedId === caseId) {
+      S.detail = await api('GET', `/api/cases/${encodeURIComponent(caseId)}`);
+      renderWorkup();
+    }
+  } catch (e) {
+    showAlert('Analysis failed: ' + e.message, 8000);
+  } finally {
+    S.analyzing.delete(caseId);
+    renderQueue();
+    if (S.selectedId === caseId) {
+      btn.disabled = false;
+      btn.textContent = 'Re-run analysis';
+    }
+  }
+}
+
+async function clearWorkups() {
+  if (!confirm('Clear all workup outputs? Case data is not affected.')) return;
+  try {
+    await api('DELETE', '/api/workups');
+    const res = await api('GET', '/api/cases');
+    S.cases = res.cases || [];
+    renderQueue();
+    if (S.selectedId) {
+      S.detail = await api('GET', `/api/cases/${encodeURIComponent(S.selectedId)}`);
+      renderWorkup();
+    }
+  } catch (e) {
+    showAlert('Failed to clear workups: ' + e.message);
+  }
+}
+
+function toggleUncert() {
+  S.uncertOpen = !S.uncertOpen;
+  const body = document.getElementById('uncert-body');
+  const lbl = document.getElementById('uncert-toggle-label');
+  if (body) body.classList.toggle('hidden', !S.uncertOpen);
+  if (lbl) lbl.textContent = S.uncertOpen ? 'Hide' : 'Show';
+}
+
+function toggleAnalystNotes() {
+  S.analystNotesOpen = !S.analystNotesOpen;
+  const body = document.getElementById('analyst-notes-body');
+  const lbl = document.getElementById('analyst-notes-toggle-label');
+  if (body) body.classList.toggle('hidden', !S.analystNotesOpen);
+  if (lbl) lbl.textContent = S.analystNotesOpen ? 'Hide' : 'Show';
+}
+
+function promptOverride() {
+  const el = document.getElementById('override-confirm');
+  if (el) el.classList.add('visible');
+}
+
+function cancelOverride() {
+  const el = document.getElementById('override-confirm');
+  if (el) el.classList.remove('visible');
+}
+
+async function saveOverride() {
+  if (!S.selectedId) return;
+  const action = document.getElementById('override-select').value;
+  const notes = document.getElementById('override-notes').value;
+  cancelOverride();
+  try {
+    await api('PATCH', `/api/cases/${encodeURIComponent(S.selectedId)}/override`, { action, notes });
+    const listRes = await api('GET', '/api/cases');
+    S.cases = listRes.cases || [];
+    renderQueue();
+    S.detail = await api('GET', `/api/cases/${encodeURIComponent(S.selectedId)}`);
+    renderWorkup();
+    document.getElementById('rec-card')?.scrollIntoView({ block: 'start' });
+  } catch (e) {
+    showAlert('Failed to save override: ' + e.message);
+  }
+}
+
+function scheduleRationaleSave() {
+  clearTimeout(rationaleTimer);
+  rationaleTimer = setTimeout(async () => {
+    const text = document.getElementById('rationale-text')?.value || '';
+    if (!S.selectedId) return;
+    try {
+      await api('PATCH', `/api/cases/${encodeURIComponent(S.selectedId)}/rationale`, { text });
+    } catch (e) {
+      // silent — rationale saves are best-effort
+    }
+  }, 1200);
+}
+
+function exportZip() {
+  if (!S.selectedId) return;
+  window.location.href = `/api/cases/${encodeURIComponent(S.selectedId)}/export`;
+}
+
+function toggleNotes() {
+  S.notesOpen = !S.notesOpen;
+  const body = document.getElementById('notes-body');
+  const label = document.getElementById('notes-toggle-label');
+  if (body) body.className = S.notesOpen ? 'notes-body' : 'hidden';
+  if (label) label.textContent = S.notesOpen ? 'Hide' : 'Show';
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+let testedKey = null;
+
+async function loadModels(provider, apiKey) {
+  const sel = document.getElementById('s-text-model');
+  const savedModel = S.settings && S.settings.text_model || '';
+  sel.disabled = true;
+  sel.innerHTML = '<option value="">Loading models…</option>';
+  try {
+    const res = await api('POST', '/api/settings/models', { provider, api_key: apiKey || '' });
+    const models = res.models || [];
+    if (!models.length) {
+      sel.innerHTML = '<option value="">No supported models found</option>';
+      return null;
+    }
+    sel.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+    const target = savedModel && models.includes(savedModel) ? savedModel : models[0];
+    sel.value = target;
+    sel.disabled = false;
+    return target;
+  } catch (_) {
+    sel.innerHTML = '<option value="">Could not load models</option>';
+    return null;
+  }
+}
+
+function openSettings() {
+  testedKey = null;
+  document.getElementById('modal-save-btn').textContent = 'Save and continue';
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById('modal-error').style.display = 'none';
+  if (S.settings) updateSettingsModal(S.settings);
+  if (S.settings && S.settings.api_key_set) {
+    loadModels(S.settings.provider || 'openai', '');
+  }
+}
+
+function closeSettings() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+
+function updateSettingsModal(settings) {
+  if (settings.provider) document.getElementById('s-provider').value = settings.provider;
+  // text_model applied after loadModels() populates options
+  const prev = document.getElementById('s-key-preview');
+  if (settings.api_key_preview) {
+    prev.textContent = 'Current: ' + settings.api_key_preview;
+  } else {
+    prev.textContent = '';
+  }
+}
+
+async function saveSettings() {
+  const provider = document.getElementById('s-provider').value;
+  const apiKey = document.getElementById('s-api-key').value.trim();
+  const errEl = document.getElementById('modal-error');
+  const saveBtn = document.getElementById('modal-save-btn');
+  errEl.style.display = 'none';
+
+  const hasExistingKey = S.settings && S.settings.api_key_set;
+  if (!apiKey && !hasExistingKey) {
+    errEl.textContent = 'An API key is required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // New key not yet validated this session — test then load models, pause for model pick
+  if (apiKey && apiKey !== testedKey) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner"></span>Testing key…';
+    try {
+      const test = await api('POST', '/api/settings/test', { provider, api_key: apiKey });
+      if (!test.valid) {
+        errEl.textContent = 'Key rejected by provider: ' + test.error;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save and continue';
+        return;
+      }
+    } catch (e) {
+      errEl.textContent = 'Could not reach provider: ' + e.message;
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save and continue';
+      return;
+    }
+    saveBtn.innerHTML = '<span class="spinner"></span>Loading models…';
+    await loadModels(provider, apiKey);
+    testedKey = apiKey;
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save settings';
+    return; // let the user pick a model then click again
+  }
+
+  // Second click (or no new key): save with selected model
+  const textModel = document.getElementById('s-text-model').value;
+  if (!textModel) {
+    errEl.textContent = 'Select a model before saving.';
+    errEl.style.display = 'block';
+    return;
+  }
+  try {
+    S.settings = await api('POST', '/api/settings', {
+      provider,
+      api_key: apiKey,
+      text_model: textModel,
+      vision_model: textModel,
+    });
+    testedKey = null;
+    closeSettings();
+    document.getElementById('s-api-key').value = '';
+    updateSettingsModal(S.settings);
+  } catch (e) {
+    errEl.textContent = 'Failed to save: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+</script>
+
+</body>
+</html>
