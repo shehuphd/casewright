@@ -6,6 +6,9 @@ A lightweight chargeback representment workbench. Takes a chargeback case, reads
 
 Supports OpenAI and Anthropic models. Runs entirely on your machine — no external services beyond the LLM API.
 
+<img width="1363" height="788" alt="image" src="https://github.com/user-attachments/assets/c4c7843e-b844-4398-a3f2-f5e293569410" />
+
+
 ## Quick start
 
 ### 1. Clone
