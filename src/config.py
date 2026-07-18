@@ -54,3 +54,11 @@ def save_settings(provider: str, api_key: str, text_model: str, vision_model: st
     if vision_model:
         set_key(str(ENV_FILE), "LLM_VISION_MODEL", vision_model)
     load_dotenv(ENV_FILE, override=True)
+
+
+def delete_api_key():
+    ENV_FILE.touch(exist_ok=True)
+    set_key(str(ENV_FILE), "LLM_API_KEY", "")
+    set_key(str(ENV_FILE), "LLM_TEXT_MODEL", "")
+    set_key(str(ENV_FILE), "LLM_VISION_MODEL", "")
+    load_dotenv(ENV_FILE, override=True)

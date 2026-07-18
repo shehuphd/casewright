@@ -197,6 +197,13 @@ def test_settings():
         return jsonify({"valid": False, "error": msg})
 
 
+@app.route("/api/settings/key", methods=["DELETE"])
+def delete_api_key():
+    cfg.delete_api_key()
+    log_event("key_delete", {})
+    return jsonify(cfg.get_settings())
+
+
 @app.route("/api/settings", methods=["POST"])
 def post_settings():
     body = request.get_json(force=True)

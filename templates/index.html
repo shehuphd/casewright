@@ -375,7 +375,26 @@
       box-sizing: border-box;
     }
     .form-group input:focus { outline: none; border-color: var(--blue); }
-    .modal-footer { display: flex; gap: 10px; margin-top: 24px; }
+    .modal-footer { display: flex; gap: 10px; margin-top: 24px; align-items: center; }
+    .btn-danger-ghost {
+      padding: 11px 14px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 14px; color: #FF8A7E;
+      background: transparent; border: 1px solid rgba(255,138,126,0.35);
+      border-radius: 8px; cursor: pointer; white-space: nowrap;
+    }
+    .btn-danger-ghost:hover { background: var(--red-bg); }
+    .delete-confirm {
+      display: none; margin-top: 12px; padding: 12px 14px;
+      background: var(--red-bg); border: 1px solid var(--red-border);
+      border-radius: 8px; font-size: 13px; color: #FF8A7E;
+    }
+    .delete-confirm-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-danger {
+      padding: 8px 14px; font-family: 'Manrope', sans-serif;
+      font-weight: 600; font-size: 13px; color: #fff;
+      background: #c0392b; border: none; border-radius: 6px; cursor: pointer;
+    }
+    .btn-danger:hover { background: #a93226; }
     .btn-ghost {
       flex: 1; padding: 11px; font-family: 'Manrope', sans-serif;
       font-weight: 600; font-size: 14px; color: var(--text-4);
@@ -460,8 +479,16 @@
         <option value="">— verify a key to load models —</option>
       </select>
     </div>
+    <div id="delete-confirm" class="delete-confirm">
+      This will remove your saved API key and model selection. Are you sure?
+      <div class="delete-confirm-actions">
+        <button class="btn-danger" onclick="confirmDeleteKey()">Yes, delete key</button>
+        <button class="btn-ghost" style="flex:none;padding:8px 14px;font-size:13px" onclick="cancelDeleteKey()">Cancel</button>
+      </div>
+    </div>
     <div class="modal-footer">
-      <button class="btn-ghost" onclick="closeSettings()">Cancel</button>
+      <button id="delete-key-btn" class="btn-danger-ghost" onclick="promptDeleteKey()" style="display:none">Delete key</button>
+      <button class="btn-ghost" onclick="closeSettings()" style="flex:1">Cancel</button>
       <button id="modal-save-btn" class="btn-primary" onclick="saveSettings()" style="flex:2">Save and continue</button>
     </div>
   </div>
@@ -1099,11 +1126,11 @@ async function loadModels(provider, apiKey) {
       sel.innerHTML = '<option value="">No supported models found</option>';
       return null;
     }
-    sel.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
-    const target = savedModel && models.includes(savedModel) ? savedModel : models[0];
-    sel.value = target;
+    const placeholder = '<option value="">— select a model —</option>';
+    sel.innerHTML = placeholder + models.map(m => `<option value="${m}">${m}</option>`).join('');
+    if (savedModel && models.includes(savedModel)) sel.value = savedModel;
     sel.disabled = false;
-    return target;
+    return sel.value || null;
   } catch (_) {
     sel.innerHTML = '<option value="">Could not load models</option>';
     return null;
@@ -1115,14 +1142,40 @@ function openSettings() {
   document.getElementById('modal-save-btn').textContent = 'Save and continue';
   document.getElementById('modal-overlay').classList.remove('hidden');
   document.getElementById('modal-error').style.display = 'none';
+  document.getElementById('delete-confirm').style.display = 'none';
+  const hasKey = S.settings && S.settings.api_key_set;
+  document.getElementById('delete-key-btn').style.display = hasKey ? 'block' : 'none';
   if (S.settings) updateSettingsModal(S.settings);
-  if (S.settings && S.settings.api_key_set) {
-    loadModels(S.settings.provider || 'openai', '');
-  }
+  if (hasKey) loadModels(S.settings.provider || 'openai', '');
 }
 
 function closeSettings() {
   document.getElementById('modal-overlay').classList.add('hidden');
+  document.getElementById('delete-confirm').style.display = 'none';
+}
+
+function promptDeleteKey() {
+  document.getElementById('modal-error').style.display = 'none';
+  document.getElementById('delete-confirm').style.display = 'block';
+}
+
+function cancelDeleteKey() {
+  document.getElementById('delete-confirm').style.display = 'none';
+}
+
+async function confirmDeleteKey() {
+  const errEl = document.getElementById('modal-error');
+  try {
+    S.settings = await api('DELETE', '/api/settings/key');
+    closeSettings();
+    document.getElementById('s-api-key').value = '';
+    updateSettingsModal(S.settings);
+    openSettings();
+  } catch (e) {
+    document.getElementById('delete-confirm').style.display = 'none';
+    errEl.textContent = 'Failed to delete key: ' + e.message;
+    errEl.style.display = 'block';
+  }
 }
 
 function updateSettingsModal(settings) {
