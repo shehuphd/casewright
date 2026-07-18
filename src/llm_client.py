@@ -71,18 +71,28 @@ def _openai_content(text_prompt: str, image_parts: list[dict]) -> list | str:
 
 # ── Anthropic ─────────────────────────────────────────────────────────────────
 
+def _anthropic_supports_temperature(model: str) -> bool:
+    """Opus 4.7+, Opus 4.8, Sonnet 5, and Fable 5 dropped temperature — it returns 400."""
+    no_temp = {"claude-opus-4-7", "claude-opus-4-8", "claude-sonnet-5", "claude-fable-5", "claude-mythos-5"}
+    return model not in no_temp
+
+
 def _call_anthropic(system_prompt, text_prompt, image_parts, api_key, model):
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
 
     user_content = _anthropic_content(text_prompt, image_parts)
 
-    response = client.messages.create(
-        model=model,
-        system=system_prompt,
-        messages=[{"role": "user", "content": user_content}],
-        max_tokens=8192,
-    )
+    params: dict = {
+        "model": model,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": user_content}],
+        "max_tokens": 8192,
+    }
+    if _anthropic_supports_temperature(model):
+        params["temperature"] = 0.1
+
+    response = client.messages.create(**params)
 
     raw = response.content[0].text if response.content else ""
     tokens = (
