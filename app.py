@@ -292,7 +292,7 @@ def analyze_case(case_id):
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         log_event("analysis_error", {"case_id": case_id, "error": str(e)}, level="error")
-        return jsonify({"error": f"Analysis failed: {e}"}), 500
+        return jsonify({"error": "An unexpected error occurred. Check the server logs for details."}), 500
     finally:
         with _running_lock:
             _running.discard(case_id)

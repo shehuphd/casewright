@@ -31,6 +31,7 @@ def _supports_temperature(model: str) -> bool:
 
 
 def _call_openai(system_prompt, text_prompt, image_parts, api_key, model):
+    import openai
     from openai import OpenAI
     client = OpenAI(api_key=api_key)
 
@@ -48,11 +49,32 @@ def _call_openai(system_prompt, text_prompt, image_parts, api_key, model):
     if _supports_temperature(model):
         params["temperature"] = 0.1
 
-    response = client.chat.completions.create(**params)
+    try:
+        response = client.chat.completions.create(**params)
+    except openai.AuthenticationError:
+        raise ValueError("Invalid API key. Update it in Settings.")
+    except openai.RateLimitError as e:
+        msg = str(e).lower()
+        if any(w in msg for w in ("quota", "exceeded", "billing", "insufficient")):
+            raise ValueError("Your OpenAI account has no remaining credits. Add billing at platform.openai.com.")
+        raise ValueError("OpenAI rate limit reached. Wait a moment and try again.")
+    except openai.NotFoundError:
+        raise ValueError(f"Model '{model}' not found. Choose a different model in Settings.")
+    except openai.BadRequestError as e:
+        raise ValueError(f"OpenAI rejected the request: {e}")
+    except openai.APIConnectionError:
+        raise ValueError("Could not reach OpenAI. Check your internet connection.")
+    except openai.APITimeoutError:
+        raise ValueError("The request timed out. Try again, or try a smaller case.")
+    except openai.InternalServerError:
+        raise ValueError("OpenAI is experiencing issues. Try again shortly.")
 
-    raw = response.choices[0].message.content or ""
-    tokens = response.usage.total_tokens if response.usage else _estimate_tokens(system_prompt, text_prompt)
-    return json.loads(raw), tokens
+    try:
+        raw = response.choices[0].message.content or ""
+        tokens = response.usage.total_tokens if response.usage else _estimate_tokens(system_prompt, text_prompt)
+        return json.loads(raw), tokens
+    except json.JSONDecodeError:
+        raise ValueError("The model returned an unexpected response format. Try again.")
 
 
 def _openai_content(text_prompt: str, image_parts: list[dict]) -> list | str:
@@ -92,14 +114,35 @@ def _call_anthropic(system_prompt, text_prompt, image_parts, api_key, model):
     if _anthropic_supports_temperature(model):
         params["temperature"] = 0.1
 
-    response = client.messages.create(**params)
+    try:
+        response = client.messages.create(**params)
+    except anthropic.AuthenticationError:
+        raise ValueError("Invalid API key. Update it in Settings.")
+    except anthropic.RateLimitError as e:
+        msg = str(e).lower()
+        if any(w in msg for w in ("quota", "exceeded", "billing", "credit", "insufficient")):
+            raise ValueError("Your Anthropic account has no remaining credits. Add billing at console.anthropic.com.")
+        raise ValueError("Anthropic rate limit reached. Wait a moment and try again.")
+    except anthropic.NotFoundError:
+        raise ValueError(f"Model '{model}' not found. Choose a different model in Settings.")
+    except anthropic.BadRequestError as e:
+        raise ValueError(f"Anthropic rejected the request: {e}")
+    except anthropic.APIConnectionError:
+        raise ValueError("Could not reach Anthropic. Check your internet connection.")
+    except anthropic.APITimeoutError:
+        raise ValueError("The request timed out. Try again, or try a smaller case.")
+    except anthropic.InternalServerError:
+        raise ValueError("Anthropic is experiencing issues. Try again shortly.")
 
-    raw = response.content[0].text if response.content else ""
-    tokens = (
-        response.usage.input_tokens + response.usage.output_tokens
-        if response.usage else _estimate_tokens(system_prompt, text_prompt)
-    )
-    return _extract_json(raw), tokens
+    try:
+        raw = response.content[0].text if response.content else ""
+        tokens = (
+            response.usage.input_tokens + response.usage.output_tokens
+            if response.usage else _estimate_tokens(system_prompt, text_prompt)
+        )
+        return _extract_json(raw), tokens
+    except json.JSONDecodeError:
+        raise ValueError("The model returned an unexpected response format. Try again.")
 
 
 def _anthropic_content(text_prompt: str, image_parts: list[dict]) -> list | str:
