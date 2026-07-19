@@ -1,6 +1,6 @@
 # Casewright
 
-**Version 1.0.0** · Built by [Mo Shehu](https://mohammedshehu.com)
+**Version 1.0.1** · Built by [Mo Shehu](https://mohammedshehu.com)
 
 A lightweight chargeback representment workbench. Takes a chargeback case, reads the relevant scheme reason-code rules, reviews attached merchant evidence, and produces an analyst-ready workup with a recommendation and evidence checklist.
 
