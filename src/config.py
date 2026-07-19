@@ -1,11 +1,28 @@
 import os
+import re
 from pathlib import Path
-from dotenv import load_dotenv, set_key
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).parent.parent
 ENV_FILE = BASE_DIR / ".env"
 
 load_dotenv(ENV_FILE)
+
+
+def _set_key(env_path: Path, key: str, value: str) -> None:
+    """Write a key=value pair to .env directly (avoids dotenv's temp-file rename which fails on Windows/Dropbox)."""
+    env_path.touch(exist_ok=True)
+    content = env_path.read_text(encoding="utf-8")
+    pattern = re.compile(rf"^{re.escape(key)}=.*$", re.MULTILINE)
+    quoted = f'"{value}"'
+    replacement = f"{key}={quoted}"
+    if pattern.search(content):
+        content = pattern.sub(replacement, content)
+    else:
+        if content and not content.endswith("\n"):
+            content += "\n"
+        content += replacement + "\n"
+    env_path.write_text(content, encoding="utf-8")
 
 
 def get_settings():
@@ -44,21 +61,19 @@ def get_raw_settings():
 
 
 def save_settings(provider: str, api_key: str, text_model: str, vision_model: str):
-    ENV_FILE.touch(exist_ok=True)
     if provider:
-        set_key(str(ENV_FILE), "LLM_PROVIDER", provider)
+        _set_key(ENV_FILE, "LLM_PROVIDER", provider)
     if api_key:
-        set_key(str(ENV_FILE), "LLM_API_KEY", api_key)
+        _set_key(ENV_FILE, "LLM_API_KEY", api_key)
     if text_model:
-        set_key(str(ENV_FILE), "LLM_TEXT_MODEL", text_model)
+        _set_key(ENV_FILE, "LLM_TEXT_MODEL", text_model)
     if vision_model:
-        set_key(str(ENV_FILE), "LLM_VISION_MODEL", vision_model)
+        _set_key(ENV_FILE, "LLM_VISION_MODEL", vision_model)
     load_dotenv(ENV_FILE, override=True)
 
 
 def delete_api_key():
-    ENV_FILE.touch(exist_ok=True)
-    set_key(str(ENV_FILE), "LLM_API_KEY", "")
-    set_key(str(ENV_FILE), "LLM_TEXT_MODEL", "")
-    set_key(str(ENV_FILE), "LLM_VISION_MODEL", "")
+    _set_key(ENV_FILE, "LLM_API_KEY", "")
+    _set_key(ENV_FILE, "LLM_TEXT_MODEL", "")
+    _set_key(ENV_FILE, "LLM_VISION_MODEL", "")
     load_dotenv(ENV_FILE, override=True)
