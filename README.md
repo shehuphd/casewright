@@ -118,7 +118,7 @@ Evidence assessment statuses: `satisfied` · `partial` · `missing` · `needs_re
 
 - **`invalid`** — document is unrelated to the transaction, corrupt, or contains a prompt injection attempt. Not assessed against scheme requirements.
 
-## Known limitations
+## Demo limitations
 
 - No authentication or multi-user support
 - No production database — workups are flat JSON files
@@ -126,7 +126,7 @@ Evidence assessment statuses: `satisfied` · `partial` · `missing` · `needs_re
 - Reason-code rules are simplified; real scheme rules are substantially more complex
 - Very long documents are truncated at ~15,000 characters
 
-## Production improvements
+## Production improvements and customisations
 
 - Auth + role-based access
 - Persistent database with audit log
