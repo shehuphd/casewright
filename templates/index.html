@@ -286,6 +286,29 @@
       border-left: 1px solid var(--border);
     }
 
+    /* Auto-hide scrollbars (overlay style, like macOS) */
+    #left-panel, #middle-panel, #right-panel {
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+    #left-panel:hover, #middle-panel:hover, #right-panel:hover {
+      scrollbar-color: rgba(255,255,255,0.15) transparent;
+    }
+    #left-panel::-webkit-scrollbar,
+    #middle-panel::-webkit-scrollbar,
+    #right-panel::-webkit-scrollbar { width: 5px; }
+    #left-panel::-webkit-scrollbar-track,
+    #middle-panel::-webkit-scrollbar-track,
+    #right-panel::-webkit-scrollbar-track { background: transparent; }
+    #left-panel::-webkit-scrollbar-thumb,
+    #middle-panel::-webkit-scrollbar-thumb,
+    #right-panel::-webkit-scrollbar-thumb {
+      background: transparent; border-radius: 3px;
+    }
+    #left-panel:hover::-webkit-scrollbar-thumb,
+    #middle-panel:hover::-webkit-scrollbar-thumb,
+    #right-panel:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+
     #action-buttons { display: flex; gap: 10px; }
     .btn-primary {
       flex: 1; padding: 11px 16px; font-family: 'Manrope', sans-serif;
