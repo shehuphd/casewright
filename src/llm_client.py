@@ -1,5 +1,8 @@
 import json
 import re
+import time
+
+from src.tracing import active
 
 
 def call_llm(
@@ -16,11 +19,35 @@ def call_llm(
     if not provider or not api_key:
         raise ValueError("No LLM provider or API key configured. Open Settings to add one.")
 
-    if provider == "openai":
-        return _call_openai(system_prompt, text_prompt, image_parts, api_key, text_model)
-    if provider == "anthropic":
-        return _call_anthropic(system_prompt, text_prompt, image_parts, api_key, text_model)
-    raise ValueError(f"Unknown provider: {provider!r}. Supported: openai, anthropic.")
+    if provider not in ("openai", "anthropic"):
+        raise ValueError(f"Unknown provider: {provider!r}. Supported: openai, anthropic.")
+
+    caller = _call_openai if provider == "openai" else _call_anthropic
+    started = time.perf_counter()
+    try:
+        workup, tokens = caller(system_prompt, text_prompt, image_parts, api_key, text_model)
+    except Exception as e:
+        active().model(
+            operation="completion",
+            target=text_model,
+            status="failed",
+            provider=provider,
+            duration_ms=round((time.perf_counter() - started) * 1000, 1),
+            error={"type": type(e).__name__, "message": str(e)[:300]},
+        )
+        raise
+
+    active().model(
+        operation="completion",
+        target=text_model,
+        provider=provider,
+        duration_ms=round((time.perf_counter() - started) * 1000, 1),
+        images_sent=len(image_parts),
+        # Named "usage_total" rather than "tokens": TraceAct redacts any field
+        # name containing "token" as a credential.
+        usage_total=tokens,
+    )
+    return workup, tokens
 
 
 # ── OpenAI ────────────────────────────────────────────────────────────────────

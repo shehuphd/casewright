@@ -81,6 +81,7 @@ src/
   llm_client.py         OpenAI and Anthropic client (configurable)
   schema.py             Output schema + validation
   analysis_store.py     Read/write workup JSON files
+  tracing.py            TraceAct configuration and helpers
 data/
   cases.json            Chargeback cases
   reason_codes.md       Scheme reason-code rules (human-readable)
@@ -98,6 +99,27 @@ templates/
 **Images** (PNG, JPG) are base64-encoded and sent as vision input. Both OpenAI and Anthropic support this.
 
 **Prompt injection safety:** the system prompt instructs the LLM to treat all merchant evidence as untrusted content and to ignore any instructions found inside documents. Documents that appear to contain injection attempts are flagged as `invalid` rather than assessed.
+
+## Audit trail
+
+Every analysis run is traced with [TraceAct](https://github.com/traceact/traceact). Each trace records the rule that was loaded, every evidence file read and its extraction status, the assembled prompt size, the model call with its duration and usage, schema validation, and the workup written to disk. Failures are captured with the exception type and message.
+
+Traces are written to `logs/traces.jsonl`. Click **Audit trail** on any processed case to open the TraceAct viewer, or explore them from the command line:
+
+```bash
+traceact view logs/traces.jsonl
+```
+
+Query them programmatically:
+
+```python
+from traceact import TraceLog
+
+log = TraceLog("logs/traces.jsonl")
+log.filter(action="case.analyse", status="failed").render_table()
+```
+
+API keys and other credentials are redacted before anything is written. The viewer binds to localhost only — never expose it to a network without authentication in front of it, since traces contain case data.
 
 ## LLM output
 

@@ -3,6 +3,8 @@ import csv
 import io
 from pathlib import Path
 
+from src.tracing import active
+
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 MAX_CHARS_PER_DOC = 15000  # ~3750 tokens; keeps total prompt manageable
 
@@ -156,11 +158,24 @@ def extract_document(filepath: Path) -> dict:
 
 def extract_case_documents(document_names: list[str], documents_dir: str) -> list[dict]:
     docs_path = Path(documents_dir)
+    trace = active()
     results = []
     for name in document_names:
         filepath = docs_path / name
         if not filepath.exists():
-            results.append({"filename": name, "file_type": "unknown", "status": "not_found"})
+            result = {"filename": name, "file_type": "unknown", "status": "not_found"}
         else:
-            results.append(extract_document(filepath))
+            result = extract_document(filepath)
+        results.append(result)
+
+        status = result.get("status", "unknown")
+        trace.file(
+            operation="read",
+            target=name,
+            status="failed" if status in ("not_found", "needs_review") else "completed",
+            file_type=result.get("file_type", "unknown"),
+            extraction_status=status,
+            page_count=result.get("page_count"),
+            chars_extracted=len(result.get("full_text", "") or ""),
+        )
     return results

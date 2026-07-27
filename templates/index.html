@@ -558,6 +558,7 @@
     <div id="action-buttons" class="hidden">
       <button id="run-btn" class="btn-primary" onclick="runAnalysis()">Run analysis</button>
       <button id="export-btn" class="btn-secondary" onclick="exportZip()">Export .ZIP</button>
+      <button id="audit-btn" class="btn-secondary" onclick="openAuditTrail()">Audit trail</button>
     </div>
     <div id="override-card" class="card hidden"></div>
     <div id="meta-card" class="card meta-card hidden"></div>
@@ -789,6 +790,7 @@ function renderWorkup() {
     runBtn.textContent = workup ? 'Re-run analysis' : 'Run analysis';
   }
   document.getElementById('export-btn').style.display = workup ? '' : 'none';
+  document.getElementById('audit-btn').style.display = workup ? '' : 'none';
 
   // Case header
   const hdr = document.getElementById('case-header');
@@ -1124,6 +1126,21 @@ function scheduleRationaleSave() {
 function exportZip() {
   if (!S.selectedId) return;
   window.location.href = `/api/cases/${encodeURIComponent(S.selectedId)}/export`;
+}
+
+async function openAuditTrail() {
+  const btn = document.getElementById('audit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Opening…';
+  try {
+    const { url } = await api('GET', '/api/audit-trail');
+    window.open(url, '_blank', 'noopener');
+  } catch (e) {
+    showAlert('Could not open the audit trail: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Audit trail';
+  }
 }
 
 function toggleNotes() {

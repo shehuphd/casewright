@@ -7,9 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, send_file
+from traceact import TraceActMiddleware, traced_action
 
 from src import config as cfg
 from src.logger import log_event
+from src.tracing import active, configure_tracing
 from src.analysis_store import (
     clear_all_workups,
     load_workup,
@@ -25,7 +27,10 @@ from src.prompt_builder import build_prompt
 from src.rule_loader import get_rule
 from src.schema import validate_workup
 
+configure_tracing()
+
 app = Flask(__name__)
+app.wsgi_app = TraceActMiddleware(app.wsgi_app)
 
 _running: set[str] = set()
 _running_lock = threading.Lock()
@@ -63,20 +68,39 @@ def _case_summary(case: dict) -> dict:
     }
 
 
+@traced_action(action="case.analyse", kind="app", actor="user", project="casewright")
 def _run_analysis(case_id: str) -> tuple[dict, int]:
+    trace = active()
     settings = cfg.get_raw_settings()
     case = get_case(case_id)
     if not case:
         raise ValueError(f"Case {case_id} not found.")
 
+    trace.input({
+        "case_id": case_id,
+        "scheme": case["scheme"],
+        "reason_code": case["reason_code"],
+        "provider": settings["provider"],
+        "model": settings["text_model"],
+    })
+
     rule = get_rule(case["scheme"], case["reason_code"])
+    trace.step(
+        f"Loaded rule for {case['scheme']} {case['reason_code']}" if rule
+        else f"No rule found for {case['scheme']} {case['reason_code']}"
+    )
+
     docs_dir = settings["documents_dir"]
     extracted = extract_case_documents(case.get("merchant_evidence_documents", []), docs_dir)
+    trace.step(f"Extracted {len(extracted)} evidence document(s)")
 
     system_prompt, text_prompt, image_parts = build_prompt(case, rule, extracted)
+    trace.step(f"Built prompt ({len(text_prompt):,} chars, {len(image_parts)} image(s))")
+
     workup, tokens = call_llm(system_prompt, text_prompt, image_parts, settings)
 
     valid, errors = validate_workup(workup)
+    trace.step("Schema validation passed" if valid else f"Schema validation failed: {len(errors)} error(s)")
 
     limitations = []
     for doc in extracted:
@@ -111,6 +135,13 @@ def _run_analysis(case_id: str) -> tuple[dict, int]:
         workup["analyst_override"] = {"action": "keep", "notes": "", "timestamp": None}
 
     save_workup(case_id, workup)
+    trace.file(operation="write", target=f"outputs/workups/{case_id}.json")
+    trace.output({
+        "recommended_action": workup.get("recommended_action"),
+        "confidence": workup.get("confidence"),
+        "output_json_valid": valid,
+        "usage_total": tokens,  # see llm_client: "token" in a field name is redacted
+    })
     return workup, tokens
 
 
@@ -265,6 +296,22 @@ def get_case_detail(case_id):
         "workup": workup,
         "amount_display": _fmt_amount(case["chargeback_amount"]),
     })
+
+
+@app.route("/api/audit-trail", methods=["GET"])
+def launch_audit_trail():
+    """Open the TraceAct viewer on this instance's trace log."""
+    from src.tracing import TRACE_FILE
+    if not TRACE_FILE.exists():
+        return jsonify({"error": "No traces recorded yet. Run an analysis first."}), 404
+    try:
+        from traceact.viewer.instance import launch_or_connect
+        url = launch_or_connect(str(TRACE_FILE))
+    except Exception as e:
+        log_event("audit_trail_error", {"error": str(e)}, level="error")
+        return jsonify({"error": f"Could not start the trace viewer: {e}"}), 500
+    log_event("audit_trail_open", {})
+    return jsonify({"url": url})
 
 
 @app.route("/api/analyses/running", methods=["GET"])
