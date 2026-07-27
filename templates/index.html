@@ -176,6 +176,13 @@
     .badge-accept_liability { background: var(--red-bg); border-color: var(--red-border); color: #FF8A7E; }
     .badge-request_more_evidence { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
     .badge-unprocessed { background: var(--grey-bg); border-color: var(--grey-border); color: var(--grey-text); }
+    /* Outline-only: tracing is optional, so it stays visually secondary */
+    .badge-audit {
+      background: transparent; border-color: rgba(255,255,255,0.35); color: var(--text-1);
+      font-family: 'Manrope', sans-serif; cursor: pointer; transition: border-color .15s, background .15s;
+    }
+    .badge-audit:hover:not(:disabled) { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.6); }
+    .badge-audit:disabled { opacity: 0.5; cursor: default; }
 
     .status-satisfied { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
     .status-partial { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
@@ -558,7 +565,6 @@
     <div id="action-buttons" class="hidden">
       <button id="run-btn" class="btn-primary" onclick="runAnalysis()">Run analysis</button>
       <button id="export-btn" class="btn-secondary" onclick="exportZip()">Export .ZIP</button>
-      <button id="audit-btn" class="btn-secondary" onclick="openAuditTrail()">Audit trail</button>
     </div>
     <div id="override-card" class="card hidden"></div>
     <div id="meta-card" class="card meta-card hidden"></div>
@@ -790,7 +796,6 @@ function renderWorkup() {
     runBtn.textContent = workup ? 'Re-run analysis' : 'Run analysis';
   }
   document.getElementById('export-btn').style.display = workup ? '' : 'none';
-  document.getElementById('audit-btn').style.display = workup ? '' : 'none';
 
   // Case header
   const hdr = document.getElementById('case-header');
@@ -885,6 +890,7 @@ function renderProcessed(c, rule, workup) {
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="badge badge-lg badge-${esc(effectiveAction)}">${esc(actionLabel(effectiveAction))}</span>
       <span class="badge badge-lg ${esc(confClass)}">${esc(confDisplay)}</span>
+      <button id="audit-btn" class="badge badge-lg badge-audit" onclick="openAuditTrail()">Audit trail</button>
     </div>
     <div style="margin-top:12px;font-size:14px;line-height:1.6;color:var(--text-2)">${esc(workup.justification)}</div>
     <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)" class="card-label label-blue">Reason-code summary</div>
