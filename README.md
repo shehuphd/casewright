@@ -102,15 +102,17 @@ templates/
 
 ## Audit trail
 
-Every analysis run is traced with [TraceAct](https://github.com/traceact/traceact). Each trace records the rule that was loaded, every evidence file read and its extraction status, the assembled prompt size, the model call with its duration and usage, schema validation, and the workup written to disk. Failures are captured with the exception type and message.
+Every analysis run is traced with [TraceAct](https://github.com/traceact/traceact) (≥ 0.6.2). Each trace records the rule that was loaded, every evidence file read and its extraction status, the assembled prompt size, the model call with its duration and usage, schema validation, and the workup written to disk. Failures are captured with the exception type and message.
 
-Traces are written to `logs/traces.jsonl`. Click **Audit trail** on any processed case to open the TraceAct viewer, or explore them from the command line:
+Tracing is optional. If TraceAct isn't installed the app still runs — every tracing call becomes a no-op so the dependency can never block an analyst.
+
+Traces are written to `logs/traces.jsonl`. The **Audit trail** button sits in the badge row next to the confidence score on any processed case. Clicking it opens the TraceAct viewer scoped to the Casewright trace log. You can also explore traces from the command line:
 
 ```bash
 traceact view logs/traces.jsonl
 ```
 
-Query them programmatically:
+Or query them programmatically:
 
 ```python
 from traceact import TraceLog
@@ -144,7 +146,7 @@ Evidence assessment statuses: `satisfied` · `partial` · `missing` · `needs_re
 
 - No authentication or multi-user support
 - No production database — workups are flat JSON files
-- PDF text extraction fails on scanned/image-only PDFs (marked `needs_review`)
+- PDF text extraction fails on scanned/image-only PDFs (marked `invalid`)
 - Reason-code rules are simplified; real scheme rules are substantially more complex
 - Very long documents are truncated at ~15,000 characters
 
