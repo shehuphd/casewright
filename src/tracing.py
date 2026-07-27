@@ -52,6 +52,7 @@ def configure_tracing() -> None:
         return
     TRACE_FILE.parent.mkdir(exist_ok=True)
     configure(
+        project="casewright",
         config=TraceConfig(
             enabled=True,
             sink_mode="blocking",
