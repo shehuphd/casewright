@@ -3,14 +3,35 @@
 Casewright's recommendations have to be auditable, so every analysis run is
 traced: which documents were read, what was sent to the model, how long each
 step took, and what came back.
+
+Tracing is optional. If TraceAct isn't installed the app still runs with every
+tracing call becoming a no-op, so an observability dependency can never stop an
+analyst from working a case.
 """
 from pathlib import Path
 
-from traceact import JsonlSink, TraceBudget, TraceConfig, configure
-from traceact.trace import get_active_trace
-
 BASE_DIR = Path(__file__).parent.parent
 TRACE_FILE = BASE_DIR / "logs" / "traces.jsonl"
+
+try:
+    from traceact import (
+        JsonlSink,
+        TraceActMiddleware,
+        TraceBudget,
+        TraceConfig,
+        configure,
+        traced_action,
+    )
+    from traceact.trace import get_active_trace
+    TRACING_AVAILABLE = True
+except ImportError:  # pragma: no cover - exercised only without the package
+    TRACING_AVAILABLE = False
+
+    def traced_action(*_args, **_kwargs):
+        """Passthrough stand-in for the real decorator."""
+        def decorator(fn):
+            return fn
+        return decorator
 
 
 class _NullTrace:
@@ -27,6 +48,8 @@ _NULL = _NullTrace()
 
 def configure_tracing() -> None:
     """Set up TraceAct. Call once at startup, before any traced code runs."""
+    if not TRACING_AVAILABLE:
+        return
     TRACE_FILE.parent.mkdir(exist_ok=True)
     configure(
         config=TraceConfig(
@@ -48,6 +71,14 @@ def configure_tracing() -> None:
     )
 
 
+def install_middleware(flask_app) -> None:
+    """Wrap the WSGI app so inbound trace headers propagate."""
+    if TRACING_AVAILABLE:
+        flask_app.wsgi_app = TraceActMiddleware(flask_app.wsgi_app)
+
+
 def active():
     """The current trace, or a no-op stand-in when tracing isn't running."""
+    if not TRACING_AVAILABLE:
+        return _NULL
     return get_active_trace() or _NULL

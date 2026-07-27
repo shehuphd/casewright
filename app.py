@@ -7,11 +7,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, send_file
-from traceact import TraceActMiddleware, traced_action
 
 from src import config as cfg
 from src.logger import log_event
-from src.tracing import active, configure_tracing
+from src.tracing import active, configure_tracing, install_middleware, traced_action
 from src.analysis_store import (
     clear_all_workups,
     load_workup,
@@ -30,7 +29,7 @@ from src.schema import validate_workup
 configure_tracing()
 
 app = Flask(__name__)
-app.wsgi_app = TraceActMiddleware(app.wsgi_app)
+install_middleware(app)
 
 _running: set[str] = set()
 _running_lock = threading.Lock()
@@ -301,7 +300,11 @@ def get_case_detail(case_id):
 @app.route("/api/audit-trail", methods=["GET"])
 def launch_audit_trail():
     """Open the TraceAct viewer on this instance's trace log."""
-    from src.tracing import TRACE_FILE
+    from src.tracing import TRACE_FILE, TRACING_AVAILABLE
+    if not TRACING_AVAILABLE:
+        return jsonify({
+            "error": "Tracing is not installed. Run: pip install -r requirements.txt"
+        }), 503
     if not TRACE_FILE.exists():
         return jsonify({"error": "No traces recorded yet. Run an analysis first."}), 404
     try:
