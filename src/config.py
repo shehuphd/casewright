@@ -77,3 +77,8 @@ def delete_api_key():
     _set_key(ENV_FILE, "LLM_TEXT_MODEL", "")
     _set_key(ENV_FILE, "LLM_VISION_MODEL", "")
     load_dotenv(ENV_FILE, override=True)
+
+
+def get_deployment_mode() -> str:
+    """Return 'cloud' or 'local'. Operators set DEPLOYMENT_MODE=cloud in ACA env vars."""
+    return os.getenv("DEPLOYMENT_MODE", "local").lower()

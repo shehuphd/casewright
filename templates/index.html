@@ -381,6 +381,51 @@
     .notes-row .nl { color: var(--text-5); }
     .notes-row .nv { color: var(--text-2); }
 
+    /* ── Onboarding modal ── */
+    #onboard-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.82);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; backdrop-filter: blur(6px);
+    }
+    #onboard-modal {
+      background: var(--card); border: 1px solid var(--border-hover);
+      border-radius: 20px; padding: 40px; width: 660px; max-width: 92vw;
+      max-height: 90vh; overflow-y: auto;
+    }
+    #onboard-modal h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; font-size: 24px; color: var(--text-1); margin-bottom: 6px;
+    }
+    #onboard-modal > p {
+      font-size: 13px; color: var(--text-4); margin-bottom: 28px; line-height: 1.5;
+    }
+    .onboard-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px;
+    }
+    @media (max-width: 520px) { .onboard-cards { grid-template-columns: 1fr; } }
+    .onboard-card {
+      border: 2px solid var(--border); border-radius: 14px;
+      padding: 22px 20px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: var(--card-inner); display: flex; flex-direction: column;
+    }
+    .onboard-card:hover { border-color: var(--border-hover); }
+    .onboard-card.selected { border-color: var(--blue-brand); background: var(--blue-bg); }
+    .onboard-card-icon { font-size: 28px; margin-bottom: 12px; line-height: 1; }
+    .onboard-card h3 {
+      font-family: 'Space Grotesk', sans-serif; font-size: 15px;
+      font-weight: 600; color: var(--text-1); margin-bottom: 8px;
+    }
+    .onboard-card p { font-size: 13px; color: var(--text-3); line-height: 1.55; flex: 1; }
+    .onboard-badge {
+      display: inline-flex; align-items: center; gap: 5px; margin-top: 14px;
+      padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    }
+    .onboard-badge.ok  { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+    .onboard-badge.warn { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+    .onboard-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .onboard-footer-note { font-size: 12px; color: var(--text-5); }
+
     /* ── Settings modal ── */
     #modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -485,12 +530,57 @@
 
 <div id="alert-banner"></div>
 
+<!-- Onboarding modal -->
+<div id="onboard-overlay" class="hidden">
+  <div id="onboard-modal">
+    <h1>Welcome to Casewright</h1>
+    <p>Before we begin, tell us how you're running this app so we can set things up correctly.</p>
+    <div class="onboard-cards">
+
+      <div class="onboard-card" id="onboard-card-local" onclick="selectOnboardMode('local')">
+        <div class="onboard-card-icon">💻</div>
+        <h3>Running on my own machine</h3>
+        <p>You launched Casewright locally. You'll enter your API key here and it'll be saved to a local file on your computer — it never leaves your machine.</p>
+      </div>
+
+      <div class="onboard-card" id="onboard-card-cloud" onclick="selectOnboardMode('cloud')">
+        <div class="onboard-card-icon">🌐</div>
+        <h3>Running on a shared server</h3>
+        <p>This instance is hosted somewhere (e.g. Azure, a company server). The API key was configured when the app was deployed — you don't need to enter one.</p>
+        <div id="onboard-cloud-badge"></div>
+      </div>
+
+    </div>
+    <div class="onboard-footer">
+      <span class="onboard-footer-note" id="onboard-footer-note">Select how you're running Casewright to continue.</span>
+      <button id="onboard-continue-btn" class="btn-primary" onclick="completeOnboarding()" disabled style="padding:11px 28px;white-space:nowrap">Continue</button>
+    </div>
+  </div>
+</div>
+
 <!-- Settings modal -->
 <div id="modal-overlay" class="hidden" onclick="if(event.target===this)closeSettings()">
   <div id="settings-modal">
     <h2>API Configuration</h2>
-    <p>Enter your OpenAI or Anthropic API key to enable case analysis. Your key is saved locally to <code>.env</code> and never sent anywhere except the LLM provider.</p>
+    <p id="settings-modal-intro">Enter your OpenAI or Anthropic API key to enable case analysis. Your key is saved locally to <code>.env</code> and never sent anywhere except the LLM provider.</p>
     <div id="modal-error" class="modal-error"></div>
+
+    <!-- Shown instead of form fields in cloud mode -->
+    <div id="cloud-mode-notice" class="hidden" style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:10px;padding:16px 18px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:6px">🌐 Cloud deployment</div>
+      <div style="font-size:13px;color:var(--text-4);line-height:1.55">Your API key and model are managed by your administrator. Nothing to configure here.</div>
+      <div style="display:flex;gap:24px;margin-top:14px;font-size:13px">
+        <div><span style="color:var(--text-5)">Provider</span><br><strong id="cloud-notice-provider" style="color:var(--text-2)">—</strong></div>
+        <div><span style="color:var(--text-5)">Model</span><br><strong id="cloud-notice-model" style="color:var(--text-2)">—</strong></div>
+      </div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--blue-border)">
+        <div style="font-size:11px;color:var(--text-5);margin-bottom:4px">To update the API key, an administrator should run:</div>
+        <code style="font-size:11px;color:var(--text-3);background:var(--card-inner);padding:6px 10px;border-radius:6px;display:block;word-break:break-all">az containerapp secret set --name casewright --resource-group &lt;rg&gt; --secrets "llm-api-key=&lt;NEW_KEY&gt;"</code>
+      </div>
+      <div style="margin-top:10px">
+        <button onclick="resetOnboarding()" style="background:none;border:none;color:var(--text-5);font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Switch to local mode</button>
+      </div>
+    </div>
     <div class="form-group">
       <label>Provider</label>
       <select id="s-provider">
@@ -586,6 +676,8 @@ const S = {
   notesOpen: false,
   uncertOpen: false,
   analystNotesOpen: false,
+  deploymentMode: null,   // 'local' | 'cloud' — set during onboarding
+  onboardMode: null,      // selection in progress inside the onboarding modal
 };
 
 let rationaleTimer = null;
@@ -651,13 +743,62 @@ function tdsMeta(v) {
   return { text: v.replace(/_/g,' '), cls: ok ? 'mv-match' : '' };
 }
 
+// ── Onboarding ────────────────────────────────────────────────────────────────
+function selectOnboardMode(mode) {
+  S.onboardMode = mode;
+  document.getElementById('onboard-card-local').classList.toggle('selected', mode === 'local');
+  document.getElementById('onboard-card-cloud').classList.toggle('selected', mode === 'cloud');
+  document.getElementById('onboard-continue-btn').disabled = false;
+  const note = document.getElementById('onboard-footer-note');
+  note.textContent = mode === 'local'
+    ? 'You\'ll enter your API key on the next screen.'
+    : 'Your API key is already configured — nothing to enter.';
+}
+
+async function completeOnboarding() {
+  const mode = S.onboardMode;
+  if (!mode) return;
+  S.deploymentMode = mode;
+  localStorage.setItem('cw_mode', mode);
+  localStorage.setItem('cw_onboarded', '1');
+  document.getElementById('onboard-overlay').classList.add('hidden');
+  if (mode === 'local' && !S.settings.api_key_set) openSettings();
+  await continueInit();
+}
+
+function resetOnboarding() {
+  localStorage.removeItem('cw_onboarded');
+  localStorage.removeItem('cw_mode');
+  closeSettings();
+  location.reload();
+}
+
 // ── Initialise ────────────────────────────────────────────────────────────────
 async function init() {
   try {
     S.settings = await api('GET', '/api/settings');
     updateSettingsModal(S.settings);
-    if (!S.settings.api_key_set) openSettings();
 
+    if (localStorage.getItem('cw_onboarded')) {
+      S.deploymentMode = localStorage.getItem('cw_mode') || 'local';
+      if (S.deploymentMode === 'local' && !S.settings.api_key_set) openSettings();
+      await continueInit();
+    } else {
+      const status = await api('GET', '/api/onboarding').catch(() => ({ deployment_mode: 'local', key_configured: false }));
+      const badge = document.getElementById('onboard-cloud-badge');
+      badge.innerHTML = status.key_configured
+        ? '<span class="onboard-badge ok">✓ API key detected</span>'
+        : '<span class="onboard-badge warn">⚠ No API key configured</span>';
+      selectOnboardMode(status.deployment_mode || 'local');
+      document.getElementById('onboard-overlay').classList.remove('hidden');
+    }
+  } catch (e) {
+    showAlert('Init error: ' + e.message);
+  }
+}
+
+async function continueInit() {
+  try {
     const res = await api('GET', '/api/cases');
     if (res.validation_errors && res.validation_errors.length) {
       showAlert('Validation errors in cases.json: ' + res.validation_errors.map(e => e.case_id).join(', '));
@@ -1185,14 +1326,30 @@ async function loadModels(provider, apiKey) {
 
 function openSettings() {
   testedKey = null;
-  document.getElementById('modal-save-btn').textContent = 'Save and continue';
   document.getElementById('modal-overlay').classList.remove('hidden');
   document.getElementById('modal-error').style.display = 'none';
   document.getElementById('delete-confirm').style.display = 'none';
+
+  const isCloud = S.deploymentMode === 'cloud';
   const hasKey = S.settings && S.settings.api_key_set;
-  document.getElementById('delete-key-btn').style.display = hasKey ? 'block' : 'none';
-  if (S.settings) updateSettingsModal(S.settings);
-  if (hasKey) loadModels(S.settings.provider || 'openai', '');
+
+  // Toggle cloud notice vs normal form
+  document.getElementById('cloud-mode-notice').classList.toggle('hidden', !isCloud);
+  document.getElementById('settings-modal-intro').style.display = isCloud ? 'none' : '';
+  document.querySelectorAll('#settings-modal .form-group').forEach(el => {
+    el.style.display = isCloud ? 'none' : '';
+  });
+  document.getElementById('modal-save-btn').textContent = 'Save and continue';
+  document.getElementById('modal-save-btn').style.display = isCloud ? 'none' : '';
+  document.getElementById('delete-key-btn').style.display = (!isCloud && hasKey) ? 'block' : 'none';
+
+  if (isCloud && S.settings) {
+    document.getElementById('cloud-notice-provider').textContent = S.settings.provider || '—';
+    document.getElementById('cloud-notice-model').textContent = S.settings.text_model || '—';
+  } else {
+    if (S.settings) updateSettingsModal(S.settings);
+    if (hasKey) loadModels(S.settings.provider || 'openai', '');
+  }
 }
 
 function closeSettings() {

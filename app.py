@@ -187,6 +187,16 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/api/onboarding", methods=["GET"])
+def onboarding_status():
+    raw = cfg.get_raw_settings()
+    return jsonify({
+        "deployment_mode": cfg.get_deployment_mode(),
+        "key_configured": bool(raw.get("api_key")),
+        "provider": raw.get("provider") or None,
+    })
+
+
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     return jsonify(cfg.get_settings())
