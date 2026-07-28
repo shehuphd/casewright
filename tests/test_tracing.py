@@ -6,6 +6,7 @@ where any field name containing "token" is silently scrubbed.
 """
 import pytest
 
+import src.config as cfg
 import src.tracing as tracing
 from src.tracing import TRACING_AVAILABLE, active, configure_tracing, install_middleware
 
@@ -153,16 +154,138 @@ def test_audit_trail_500_when_viewer_fails(client, monkeypatch, tmp_path):
     assert "Could not start" in r.get_json()["error"]
 
 
-@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
-def test_audit_trail_200_returns_viewer_url(client, monkeypatch, tmp_path):
+def _fake_viewer(monkeypatch, tmp_path, base_path=tracing.VIEWER_BASE_PATH,
+                 token="tok-secret", source="casewright"):
+    """Point the tracing layer at a viewer that doesn't exist.
+
+    Never spawn a real one in a test: it outlives the process and writes to
+    the developer's own ~/.traceact state file.
+    """
     log = tmp_path / "traces.jsonl"
     log.write_text('{"trace_id":"t"}\n')
     monkeypatch.setattr(tracing, "TRACE_FILE", log)
 
     import traceact.viewer.instance as inst
-    # Never spawn a real viewer in a test.
-    monkeypatch.setattr(inst, "launch_or_connect", lambda *_a, **_k: "http://127.0.0.1:8765/?source=traces-2")
+    url = f"http://127.0.0.1:8765{base_path}/?source={source}&token={token}"
+    monkeypatch.setattr(inst, "launch_or_connect", lambda *_a, **_k: url)
+    monkeypatch.setattr(inst, "find_running", lambda *_a, **_k: {
+        "host": "127.0.0.1", "port": 8765, "base_path": base_path,
+        "token": token, "health": {},
+    })
+    return log
 
+
+@pytest.fixture(autouse=True)
+def _clear_viewer_cache():
+    """The resolved viewer is cached in a module global, so one test's fake
+    viewer would otherwise still be live in the next."""
+    tracing._viewer_target = None
+    yield
+    tracing._viewer_target = None
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_audit_trail_returns_same_origin_url_when_proxyable(client, monkeypatch, tmp_path):
+    _fake_viewer(monkeypatch, tmp_path)
     r = client.get("/api/audit-trail")
     assert r.status_code == 200
-    assert r.get_json()["url"] == "http://127.0.0.1:8765/?source=traces-2"
+    body = r.get_json()
+    assert body["proxied"] is True
+    assert body["url"] == "/audit-viewer/?source=casewright"
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_audit_trail_never_leaks_the_token_to_the_browser(client, monkeypatch, tmp_path):
+    """The token is the whole security benefit — if it reaches the front end
+    it's just a URL param any onlooker can reuse against the viewer's port."""
+    _fake_viewer(monkeypatch, tmp_path, token="tok-secret")
+    r = client.get("/api/audit-trail")
+    assert "tok-secret" not in r.get_data(as_text=True)
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_audit_trail_falls_back_to_direct_url_for_a_foreign_mount(client, monkeypatch, tmp_path):
+    """A viewer another app already started keeps its own mount. Proxying
+    can't reach it there, so the analyst has to be sent to it directly."""
+    _fake_viewer(monkeypatch, tmp_path, base_path="", source="other")
+    r = client.get("/api/audit-trail")
+    assert r.status_code == 200
+    body = r.get_json()
+    assert body["proxied"] is False
+    assert body["url"].startswith("http://127.0.0.1:8765/")
+
+
+# ── /audit-viewer proxy: the guards, not the happy path ───────────────────────
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_proxy_is_closed_in_cloud_mode(client, monkeypatch, tmp_path):
+    """Casewright has no auth of its own. A trace browser on a public URL
+    would hand every case file to anyone holding the link."""
+    _fake_viewer(monkeypatch, tmp_path)
+    monkeypatch.setattr(cfg, "get_deployment_mode", lambda: "cloud")
+    for path in ("/audit-viewer/", "/audit-viewer/api/sources",
+                 "/audit-viewer/api/export?source=casewright"):
+        assert client.get(path).status_code == 404, path
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_proxy_503_when_no_viewer_running(client, monkeypatch):
+    import traceact.viewer.instance as inst
+    monkeypatch.setattr(inst, "find_running", lambda *_a, **_k: None)
+    r = client.get("/audit-viewer/api/sources")
+    assert r.status_code == 503
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_proxy_503_rather_than_forwarding_to_a_foreign_mount(client, monkeypatch, tmp_path):
+    """Forwarding to a viewer mounted elsewhere would serve a page whose JS
+    calls back to paths this proxy doesn't own — a broken viewer, not a
+    working one. Refuse instead."""
+    _fake_viewer(monkeypatch, tmp_path, base_path="/somewhere-else")
+    r = client.get("/audit-viewer/api/sources")
+    assert r.status_code == 503
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_proxy_injects_the_token_upstream(client, monkeypatch, tmp_path):
+    """Without the header the tokened viewer answers 403 to everything."""
+    _fake_viewer(monkeypatch, tmp_path, token="tok-secret")
+    seen = {}
+
+    class _Resp:
+        status = 200
+        headers = {"Content-Type": "application/json"}
+
+        def read1(self, _n):
+            return b""
+
+        def close(self):
+            pass
+
+    def fake_urlopen(req, **_kw):
+        seen["url"] = req.full_url
+        seen["headers"] = dict(req.headers)
+        return _Resp()
+
+    monkeypatch.setattr("app.urllib.request.urlopen", fake_urlopen)
+    client.get("/audit-viewer/api/sources?source=casewright")
+
+    # urllib title-cases header names on the way in.
+    assert seen["headers"].get("X-traceact-token") == "tok-secret"
+    assert seen["url"] == (
+        "http://127.0.0.1:8765/audit-viewer/api/sources?source=casewright"
+    )
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_launch_viewer_raises_when_the_viewer_never_answers(monkeypatch, tmp_path):
+    log = tmp_path / "traces.jsonl"
+    log.write_text('{"trace_id":"t"}\n')
+    monkeypatch.setattr(tracing, "TRACE_FILE", log)
+
+    import traceact.viewer.instance as inst
+    monkeypatch.setattr(inst, "launch_or_connect", lambda *_a, **_k: "http://127.0.0.1:8765/")
+    monkeypatch.setattr(inst, "find_running", lambda *_a, **_k: None)
+
+    with pytest.raises(RuntimeError):
+        tracing.launch_viewer()

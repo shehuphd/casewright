@@ -2,13 +2,17 @@ import io
 import json
 import os
 import threading
+import urllib.error
+import urllib.request
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote
 
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import Flask, Response, jsonify, render_template, request, send_file, stream_with_context
 
 from src import config as cfg
+from src import tracing
 from src.logger import log_event
 from src.tracing import active, configure_tracing, install_middleware, traced_action
 from src.analysis_store import (
@@ -329,13 +333,94 @@ def launch_audit_trail():
     if not TRACE_FILE.exists():
         return jsonify({"error": "No traces recorded yet. Run an analysis first."}), 404
     try:
-        from traceact.viewer.instance import launch_or_connect
-        url = launch_or_connect(str(TRACE_FILE))
+        target = tracing.launch_viewer()
     except Exception as e:
         log_event("audit_trail_error", {"error": str(e)}, level="error")
         return jsonify({"error": f"Could not start the trace viewer: {e}"}), 500
-    log_event("audit_trail_open", {})
-    return jsonify({"url": url})
+
+    # Normally the viewer comes up on our mount and the analyst stays on this
+    # origin. A viewer another app already started keeps its own mount, and no
+    # amount of proxying can reach it there, so send them to it directly.
+    if target["base_path"] == tracing.VIEWER_BASE_PATH:
+        url = tracing.VIEWER_BASE_PATH + "/"
+        if target["source"]:
+            url += "?source=" + quote(target["source"], safe="")
+        proxied = True
+    else:
+        url = target["url"]
+        proxied = False
+    log_event("audit_trail_open", {"proxied": proxied})
+    return jsonify({"url": url, "proxied": proxied})
+
+
+# Headers that describe one hop and must not be copied onto the next.
+_HOP_BY_HOP = {
+    "connection", "keep-alive", "transfer-encoding", "te", "trailer",
+    "upgrade", "proxy-authorization", "proxy-authenticate",
+    "content-encoding", "content-length", "host",
+}
+
+
+@app.route("/audit-viewer/", defaults={"subpath": ""}, methods=["GET", "POST"])
+@app.route("/audit-viewer/<path:subpath>", methods=["GET", "POST"])
+def audit_viewer_proxy(subpath):
+    """Reverse-proxy the TraceAct viewer onto Casewright's own port.
+
+    The viewer's token is injected here and never reaches the browser, which
+    is the point of running it token-gated: another OS user who can reach the
+    viewer's localhost port still can't read case traces through it.
+
+    Local deployments only. In the cloud there's no viewer process to proxy,
+    and Casewright has no authentication of its own, so mounting a full trace
+    browser on a public URL would hand every case file to anyone holding the
+    link. Cloud analysts download the trace log instead.
+    """
+    if cfg.get_deployment_mode() == "cloud":
+        return jsonify({"error": "The trace viewer is local-only."}), 404
+
+    target = tracing.viewer_target()
+    if target is None or target["base_path"] != tracing.VIEWER_BASE_PATH:
+        return jsonify({"error": "The trace viewer is not running."}), 503
+
+    url = f"http://{target['host']}:{target['port']}{tracing.VIEWER_BASE_PATH}/{subpath}"
+    if request.query_string:
+        url += "?" + request.query_string.decode("utf-8")
+
+    headers = {"X-TraceAct-Token": target["token"]} if target["token"] else {}
+    if request.headers.get("Accept"):
+        headers["Accept"] = request.headers["Accept"]
+    body = None
+    if request.method == "POST":
+        body = request.get_data()
+        headers["Content-Type"] = request.headers.get("Content-Type", "application/json")
+
+    req = urllib.request.Request(url, data=body, headers=headers, method=request.method)
+    try:
+        upstream = urllib.request.urlopen(req, timeout=None)
+    except urllib.error.HTTPError as e:
+        return Response(e.read(), status=e.code,
+                        content_type=e.headers.get("Content-Type", "text/plain"))
+    except Exception as e:
+        return jsonify({"error": f"Could not reach the trace viewer: {e}"}), 502
+
+    def relay():
+        # read1() rather than read(): read() blocks until it has the full 8 KiB
+        # or the connection closes, and the SSE tail is a long-lived stream of
+        # small messages that never closes, so every event would sit here until
+        # enough of them piled up to fill a buffer.
+        try:
+            while True:
+                chunk = upstream.read1(8192)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            upstream.close()
+
+    passthrough = [(k, v) for k, v in upstream.headers.items()
+                   if k.lower() not in _HOP_BY_HOP]
+    return Response(stream_with_context(relay()), status=upstream.status,
+                    headers=passthrough)
 
 
 @app.route("/api/analyses/running", methods=["GET"])

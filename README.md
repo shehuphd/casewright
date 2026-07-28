@@ -106,7 +106,13 @@ Every analysis run is traced with [TraceAct](https://github.com/traceact/traceac
 
 Tracing is optional. If TraceAct isn't installed the app still runs — every tracing call becomes a no-op so the dependency can never block an analyst.
 
-Traces are written to `logs/traces.jsonl`. The **Audit trail** button sits in the badge row next to the confidence score on any processed case. Clicking it opens the TraceAct viewer scoped to the Casewright trace log. You can also explore traces from the command line:
+Traces are written to `logs/traces.jsonl`. The **Audit trail** button is in the badge row next to the confidence score on any processed case. Clicking it opens the TraceAct viewer scoped to the Casewright trace log.
+
+The viewer is mounted under `/audit-viewer` on Casewright's own port and reverse-proxied through the app, so there's no second port to open. It runs token-gated: the token stays in the Casewright process and is injected by the proxy, so the browser never carries it and no other user on the machine can read case traces off the viewer's port.
+
+In cloud mode the proxy is closed and the button becomes **Download traces**, which serves `logs/traces.jsonl` as a file. Run `traceact view` on the downloaded file to inspect it locally.
+
+You can also explore traces from the command line:
 
 ```bash
 traceact view logs/traces.jsonl
@@ -121,7 +127,7 @@ log = TraceLog("logs/traces.jsonl")
 log.filter(action="case.analyse", status="failed").render_table()
 ```
 
-API keys and other credentials are redacted before anything is written. The viewer binds to localhost only — never expose it to a network without authentication in front of it, since traces contain case data.
+API keys and other credentials are redacted before anything is written. Traces still contain case data, so the viewer binds to localhost only and the proxy refuses to serve it in cloud mode. Casewright has no authentication of its own: put auth in front of it before exposing a cloud deployment, since the trace download is reachable by anyone with the URL.
 
 ## LLM output
 
