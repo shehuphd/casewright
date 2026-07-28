@@ -194,7 +194,18 @@ def onboarding_status():
         "deployment_mode": cfg.get_deployment_mode(),
         "key_configured": bool(raw.get("api_key")),
         "provider": raw.get("provider") or None,
+        "env_exists": cfg.env_file_exists(),
     })
+
+
+@app.route("/api/traces/download", methods=["GET"])
+def download_traces():
+    from src.tracing import TRACE_FILE, TRACING_AVAILABLE
+    if not TRACING_AVAILABLE:
+        return jsonify({"error": "Tracing not installed."}), 503
+    if not TRACE_FILE.exists():
+        return jsonify({"error": "No traces recorded yet. Run an analysis first."}), 404
+    return send_file(str(TRACE_FILE), as_attachment=True, download_name="casewright-traces.jsonl")
 
 
 @app.route("/api/settings", methods=["GET"])

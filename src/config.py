@@ -82,3 +82,7 @@ def delete_api_key():
 def get_deployment_mode() -> str:
     """Return 'cloud' or 'local'. Operators set DEPLOYMENT_MODE=cloud in ACA env vars."""
     return os.getenv("DEPLOYMENT_MODE", "local").lower()
+
+
+def env_file_exists() -> bool:
+    return ENV_FILE.exists()

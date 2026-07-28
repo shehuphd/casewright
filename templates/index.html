@@ -619,6 +619,7 @@
   <div class="logo-area">
     <div class="logo-mark">C</div>
     <div class="logo-text">CASEWRIGHT</div>
+    <button onclick="launchWizard()" title="Run setup wizard" style="background:none;border:none;cursor:pointer;color:var(--text-5);font-size:14px;padding:4px 6px;border-radius:6px;line-height:1" onmouseover="this.style.color='var(--text-3)';this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.color='var(--text-5)';this.style.background='none'">✦</button>
   </div>
   <div class="header-subtitle">Chargeback representment workbench</div>
   <button id="settings-btn" onclick="openSettings()">⚙&nbsp; Settings</button>
@@ -750,6 +751,7 @@ function selectOnboardMode(mode) {
   document.getElementById('onboard-card-cloud').classList.toggle('selected', mode === 'cloud');
   document.getElementById('onboard-continue-btn').disabled = false;
   const note = document.getElementById('onboard-footer-note');
+  note.style.color = '';
   note.textContent = mode === 'local'
     ? 'You\'ll enter your API key on the next screen.'
     : 'Your API key is already configured — nothing to enter.';
@@ -758,6 +760,19 @@ function selectOnboardMode(mode) {
 async function completeOnboarding() {
   const mode = S.onboardMode;
   if (!mode) return;
+
+  // If the user claims local but there's no .env, silently correct to cloud.
+  if (mode === 'local') {
+    const check = await api('GET', '/api/onboarding').catch(() => ({ env_exists: true }));
+    if (!check.env_exists) {
+      selectOnboardMode('cloud');
+      const note = document.getElementById('onboard-footer-note');
+      note.textContent = '⚠ No local config file found. Switched to cloud mode — your API key is managed externally.';
+      note.style.color = 'var(--amber)';
+      return;
+    }
+  }
+
   S.deploymentMode = mode;
   localStorage.setItem('cw_mode', mode);
   localStorage.setItem('cw_onboarded', '1');
@@ -766,11 +781,22 @@ async function completeOnboarding() {
   await continueInit();
 }
 
-function resetOnboarding() {
+function launchWizard() {
   localStorage.removeItem('cw_onboarded');
   localStorage.removeItem('cw_mode');
+  S.onboardMode = null;
+  document.getElementById('onboard-card-local').classList.remove('selected');
+  document.getElementById('onboard-card-cloud').classList.remove('selected');
+  document.getElementById('onboard-continue-btn').disabled = true;
+  const note = document.getElementById('onboard-footer-note');
+  note.textContent = 'Select how you\'re running Casewright to continue.';
+  note.style.color = '';
+  document.getElementById('onboard-overlay').classList.remove('hidden');
+}
+
+function resetOnboarding() {
   closeSettings();
-  location.reload();
+  launchWizard();
 }
 
 // ── Initialise ────────────────────────────────────────────────────────────────
@@ -1031,7 +1057,10 @@ function renderProcessed(c, rule, workup) {
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="badge badge-lg badge-${esc(effectiveAction)}">${esc(actionLabel(effectiveAction))}</span>
       <span class="badge badge-lg ${esc(confClass)}">${esc(confDisplay)}</span>
-      <button id="audit-btn" class="badge badge-lg badge-audit" onclick="openAuditTrail()">Audit trail</button>
+      ${S.deploymentMode === 'cloud'
+        ? `<button id="audit-btn" class="badge badge-lg badge-audit" onclick="downloadTraces()">Download traces</button>`
+        : `<button id="audit-btn" class="badge badge-lg badge-audit" onclick="openAuditTrail()">Audit trail</button>`
+      }
     </div>
     <div style="margin-top:12px;font-size:14px;line-height:1.6;color:var(--text-2)">${esc(workup.justification)}</div>
     <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)" class="card-label label-blue">Reason-code summary</div>
@@ -1287,6 +1316,30 @@ async function openAuditTrail() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Audit trail';
+  }
+}
+
+async function downloadTraces() {
+  const btn = document.getElementById('audit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Downloading…';
+  try {
+    const r = await fetch('/api/traces/download');
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: r.statusText }));
+      throw new Error(err.error || r.statusText);
+    }
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'casewright-traces.jsonl';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch (e) {
+    showAlert('Could not download traces: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download traces';
   }
 }
 
