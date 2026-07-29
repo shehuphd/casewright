@@ -58,7 +58,7 @@ jobs:
 
       # No stored password. GitHub mints a short-lived OIDC token for this run
       # and Azure trades it for an access token, having been told in advance to
-      # trust exactly this repo and branch. Nothing here is worth stealing.
+      # trust this one repo and branch. There is no credential here to steal.
       - name: Azure login
         if: env.HAS_AZURE == 'true'
         uses: azure/login@v2
