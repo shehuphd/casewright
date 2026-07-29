@@ -229,6 +229,33 @@ def test_proxy_is_closed_in_cloud_mode(client, monkeypatch, tmp_path):
 
 
 @pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_trace_download_is_closed_in_cloud_mode(client, monkeypatch, tmp_path):
+    """The greyed-out button is cosmetic. Anyone can still curl the endpoint,
+    so the block has to hold on the server."""
+    log = tmp_path / "traces.jsonl"
+    log.write_text('{"trace_id":"t"}\n')
+    monkeypatch.setattr(tracing, "TRACE_FILE", log)
+    monkeypatch.setattr(cfg, "get_deployment_mode", lambda: "cloud")
+
+    r = client.get("/api/traces/download")
+    assert r.status_code == 403
+    assert "local mode only" in r.get_json()["error"]
+    assert b"trace_id" not in r.get_data()
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
+def test_trace_download_still_works_locally(client, monkeypatch, tmp_path):
+    log = tmp_path / "traces.jsonl"
+    log.write_text('{"trace_id":"t"}\n')
+    monkeypatch.setattr(tracing, "TRACE_FILE", log)
+    monkeypatch.setattr(cfg, "get_deployment_mode", lambda: "local")
+
+    r = client.get("/api/traces/download")
+    assert r.status_code == 200
+    assert b"trace_id" in r.get_data()
+
+
+@pytest.mark.skipif(not TRACING_AVAILABLE, reason="requires traceact")
 def test_proxy_503_when_no_viewer_running(client, monkeypatch):
     import traceact.viewer.instance as inst
     monkeypatch.setattr(inst, "find_running", lambda *_a, **_k: None)

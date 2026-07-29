@@ -205,6 +205,11 @@ def onboarding_status():
 @app.route("/api/traces/download", methods=["GET"])
 def download_traces():
     from src.tracing import TRACE_FILE, TRACING_AVAILABLE
+    # Closed in the cloud demo, which has no authentication: the trace log
+    # carries case data, so anyone with the URL would otherwise be able to
+    # pull it. A production deployment with auth in front can drop this.
+    if cfg.get_deployment_mode() == "cloud":
+        return jsonify({"error": "Trace download is available in local mode only."}), 403
     if not TRACING_AVAILABLE:
         return jsonify({"error": "Tracing not installed."}), 503
     if not TRACE_FILE.exists():

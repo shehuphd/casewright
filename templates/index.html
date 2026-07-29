@@ -182,7 +182,10 @@
       font-family: 'Manrope', sans-serif; cursor: pointer; transition: border-color .15s, background .15s;
     }
     .badge-audit:hover:not(:disabled) { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.6); }
-    .badge-audit:disabled { opacity: 0.5; cursor: default; }
+    .badge-audit:disabled { opacity: 0.4; cursor: not-allowed; }
+    /* A disabled button swallows pointer events, so its own title never
+       fires. The wrapper is what the tooltip hangs off. */
+    .badge-audit-wrap { display: inline-flex; cursor: not-allowed; }
 
     .status-satisfied { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
     .status-partial { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
@@ -1058,7 +1061,7 @@ function renderProcessed(c, rule, workup) {
       <span class="badge badge-lg badge-${esc(effectiveAction)}">${esc(actionLabel(effectiveAction))}</span>
       <span class="badge badge-lg ${esc(confClass)}">${esc(confDisplay)}</span>
       ${S.deploymentMode === 'cloud'
-        ? `<button id="audit-btn" class="badge badge-lg badge-audit" onclick="downloadTraces()">Download traces</button>`
+        ? `<span class="badge-audit-wrap" title="Trace download is available in local mode only. This demo doesn't serve case traces from a cloud deployment."><button id="audit-btn" class="badge badge-lg badge-audit" disabled>Download traces</button></span>`
         : `<button id="audit-btn" class="badge badge-lg badge-audit" onclick="openAuditTrail()">Audit trail</button>`
       }
     </div>
