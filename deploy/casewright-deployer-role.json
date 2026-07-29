@@ -4,8 +4,7 @@
   "Description": "Point the Casewright container app at a new image. Read and write only: the CI identity has no reason to delete the app, and Contributor would let a compromised workflow do so.",
   "Actions": [
     "Microsoft.App/containerApps/read",
-    "Microsoft.App/containerApps/write",
-    "Microsoft.App/containerApps/revisions/read"
+    "Microsoft.App/containerApps/write"
   ],
   "NotActions": [],
   "DataActions": [],
