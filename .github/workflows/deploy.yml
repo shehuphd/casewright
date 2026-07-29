@@ -1,8 +1,8 @@
 name: Build, push, deploy
 
-# Manual-only until Azure exists. Restore the push trigger below once the
-# container app is created and AZURE_CREDENTIALS is set, otherwise every
-# commit to main mails out a failure for infrastructure nobody built yet.
+# Manual-only until the Azure side exists. Restore the push trigger below once
+# the container app is created and the AZURE_* variables are set, otherwise
+# every commit to main mails out a failure for infrastructure nobody built yet.
 #
 #   on:
 #     push:
@@ -12,20 +12,25 @@ on:
 
 env:
   IMAGE: ghcr.io/shehuphd/casewright
+  # A resource group holding nothing but this deployment, so the deployer
+  # identity's scope can't reach anything else in the subscription.
+  RESOURCE_GROUP: casewright-deploy
+  APP_NAME: casewright
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write   # needed to push to GHCR
+      packages: write   # push to GHCR
+      id-token: write   # mint the OIDC token azure/login exchanges
 
     env:
-      # Deploying needs a service principal that only the repo owner can
-      # create. Until that secret exists the build still has to go green:
-      # pushing the image to GHCR is useful on its own, and a red tick on
-      # every commit trains everyone to ignore the one that matters.
-      HAS_AZURE: ${{ secrets.AZURE_CREDENTIALS != '' }}
+      # Deploying needs an Azure identity only the repo owner can create.
+      # Until it exists the build still has to go green: pushing the image to
+      # GHCR is useful on its own, and a red tick on every commit trains
+      # everyone to ignore the one that means something.
+      HAS_AZURE: ${{ vars.AZURE_CLIENT_ID != '' }}
 
     steps:
       - uses: actions/checkout@v5
@@ -51,19 +56,24 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # No stored password. GitHub mints a short-lived OIDC token for this run
+      # and Azure trades it for an access token, having been told in advance to
+      # trust exactly this repo and branch. Nothing here is worth stealing.
       - name: Azure login
         if: env.HAS_AZURE == 'true'
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Container Apps
         if: env.HAS_AZURE == 'true'
         run: |
           az containerapp update \
-            --name casewright \
-            --resource-group shehu \
-            --image ${{ env.IMAGE }}:${{ github.sha }}
+            --name "$APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${IMAGE}:${GITHUB_SHA}"
 
       - name: Note that deployment was skipped
         if: env.HAS_AZURE != 'true'
@@ -71,4 +81,5 @@ jobs:
           echo "### Image pushed, deployment skipped" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "\`${IMAGE}:${GITHUB_SHA}\` is in GHCR." >> $GITHUB_STEP_SUMMARY
-          echo "Azure deployment needs the \`AZURE_CREDENTIALS\` repository secret, which isn't set." >> $GITHUB_STEP_SUMMARY
+          echo "Deployment needs the \`AZURE_CLIENT_ID\`, \`AZURE_TENANT_ID\`, and" >> $GITHUB_STEP_SUMMARY
+          echo "\`AZURE_SUBSCRIPTION_ID\` repository variables, which aren't set." >> $GITHUB_STEP_SUMMARY
