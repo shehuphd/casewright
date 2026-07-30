@@ -5,4 +5,4 @@ openai>=1.30
 anthropic>=0.30
 pillow>=10.0
 openpyxl>=3.1
-traceact>=0.11.0
+traceact>=0.12.0

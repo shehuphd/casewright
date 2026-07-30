@@ -102,7 +102,7 @@ templates/
 
 ## Audit trail
 
-Every analysis run is traced with [TraceAct](https://github.com/traceact/traceact) (≥ 0.11.0). Each trace records the rule that was loaded, every evidence file read and its extraction status, the assembled prompt size, the model call with its duration and usage, schema validation, and the workup written to disk. Failures are captured with the exception type and message.
+Every analysis run is traced with [TraceAct](https://github.com/traceact/traceact) (≥ 0.12.0). Each trace records the rule that was loaded, every evidence file read and its extraction status, the assembled prompt size, the model call with its duration and usage, schema validation, and the workup written to disk. Failures are captured with the exception type and message.
 
 Tracing is optional. If TraceAct isn't installed the app still runs — every tracing call becomes a no-op so the dependency can never block an analyst.
 
