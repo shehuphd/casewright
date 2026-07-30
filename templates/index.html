@@ -544,12 +544,13 @@
         <div class="onboard-card-icon">💻</div>
         <h3>Running on my own machine</h3>
         <p>You launched Casewright locally. You'll enter your API key here and it'll be saved to a local file on your computer — it never leaves your machine.</p>
+        <div id="onboard-local-badge"></div>
       </div>
 
       <div class="onboard-card" id="onboard-card-cloud" onclick="selectOnboardMode('cloud')">
         <div class="onboard-card-icon">🌐</div>
         <h3>Running on a shared server</h3>
-        <p>This instance is hosted somewhere (e.g. Azure, a company server). The API key was configured when the app was deployed — you don't need to enter one.</p>
+        <p>This instance is hosted somewhere (e.g. Azure, a company server). You'll use your own API key. It's kept in this browser tab only, sent with each analysis, and never saved on the server.</p>
         <div id="onboard-cloud-badge"></div>
       </div>
 
@@ -570,17 +571,16 @@
 
     <!-- Shown instead of form fields in cloud mode -->
     <div id="cloud-mode-notice" class="hidden" style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:10px;padding:16px 18px;margin-bottom:20px">
-      <div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:6px">🌐 Cloud deployment</div>
-      <div style="font-size:13px;color:var(--text-4);line-height:1.55">Your API key and model are managed by your administrator. Nothing to configure here.</div>
-      <div style="display:flex;gap:24px;margin-top:14px;font-size:13px">
-        <div><span style="color:var(--text-5)">Provider</span><br><strong id="cloud-notice-provider" style="color:var(--text-2)">—</strong></div>
-        <div><span style="color:var(--text-5)">Model</span><br><strong id="cloud-notice-model" style="color:var(--text-2)">—</strong></div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:6px">🌐 Bring your own key</div>
+      <div style="font-size:13px;color:var(--text-4);line-height:1.55">
+        This is a shared deployment, so you supply your own API key and your own usage is billed to you.
+        The key is held in this browser tab only and is cleared when you close it. It's never written to the server.
       </div>
-      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--blue-border)">
-        <div style="font-size:11px;color:var(--text-5);margin-bottom:4px">To update the API key, an administrator should run:</div>
-        <code style="font-size:11px;color:var(--text-3);background:var(--card-inner);padding:6px 10px;border-radius:6px;display:block;word-break:break-all">az containerapp secret set --name casewright --resource-group &lt;rg&gt; --secrets "llm-api-key=&lt;NEW_KEY&gt;"</code>
+      <div style="font-size:12px;color:var(--text-5);line-height:1.5;margin-top:10px">
+        Casewright reads your documents and calls the model server-side, so your key does pass through this
+        server on each analysis. Only use a key you're willing to send to whoever operates this instance.
       </div>
-      <div style="margin-top:10px">
+      <div style="margin-top:14px">
         <button onclick="resetOnboarding()" style="background:none;border:none;color:var(--text-5);font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Switch to local mode</button>
       </div>
     </div>
@@ -681,14 +681,48 @@ const S = {
   uncertOpen: false,
   analystNotesOpen: false,
   deploymentMode: null,   // 'local' | 'cloud' — set during onboarding
+  onboardStatus: null,    // cached /api/onboarding result, for the wizard's badges
   onboardMode: null,      // selection in progress inside the onboarding modal
 };
 
 let rationaleTimer = null;
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
+/* Cloud deployments are bring-your-own-key. The key lives in sessionStorage
+   so it dies with the tab rather than persisting on a shared machine, and it
+   is sent per-request instead of being saved server-side, where it would be
+   one instance's key spending on behalf of everyone who found the URL. */
+const BYOK = {
+  get() {
+    try { return JSON.parse(sessionStorage.getItem('cw_byok') || 'null'); }
+    catch { return null; }
+  },
+  set(v) { sessionStorage.setItem('cw_byok', JSON.stringify(v)); },
+  clear() { sessionStorage.removeItem('cw_byok'); },
+};
+
+function byokHeaders() {
+  if (S.deploymentMode !== 'cloud') return {};
+  const k = BYOK.get();
+  if (!k || !k.api_key) return {};
+  return {
+    'X-LLM-Provider': k.provider || '',
+    'X-LLM-Key': k.api_key,
+    'X-LLM-Text-Model': k.text_model || '',
+    'X-LLM-Vision-Model': k.vision_model || k.text_model || '',
+  };
+}
+
+function hasUsableKey() {
+  if (S.deploymentMode === 'cloud') {
+    const k = BYOK.get();
+    return !!(k && k.api_key);
+  }
+  return !!(S.settings && S.settings.api_key_set);
+}
+
 async function api(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const opts = { method, headers: { 'Content-Type': 'application/json', ...byokHeaders() } };
   if (body !== undefined) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
   if (!r.ok) {
@@ -755,9 +789,35 @@ function selectOnboardMode(mode) {
   document.getElementById('onboard-continue-btn').disabled = false;
   const note = document.getElementById('onboard-footer-note');
   note.style.color = '';
-  note.textContent = mode === 'local'
-    ? 'You\'ll enter your API key on the next screen.'
-    : 'Your API key is already configured — nothing to enter.';
+  // Each mode keeps its key somewhere different, so "do I have a key?" has a
+  // different answer per mode. Report the one for the card just chosen.
+  note.textContent = modeHasKey(mode)
+    ? (mode === 'local'
+        ? 'A key is already saved on this machine. Continue to start working.'
+        : 'A key is already saved in this browser tab. Continue to start working.')
+    : (mode === 'local'
+        ? 'You\'ll enter your API key on the next screen. It\'s saved to a file on this machine.'
+        : 'You\'ll enter your API key on the next screen. It stays in this browser tab.');
+}
+
+/* Does the given mode already have a usable key? Local keys live in the
+   server's .env (reported by /api/onboarding at boot), cloud keys in this
+   tab's sessionStorage. Checking the wrong source is what previously made a
+   developer's local .env light up the cloud card. */
+function modeHasKey(mode) {
+  if (mode === 'cloud') {
+    const k = BYOK.get();
+    return !!(k && k.api_key);
+  }
+  return !!(S.onboardStatus && S.onboardStatus.key_configured);
+}
+
+function renderOnboardBadges() {
+  const mk = (found, where) => found
+    ? `<span class="onboard-badge ok">✓ API key found ${where}</span>`
+    : `<span class="onboard-badge warn">⚠ No API key yet</span>`;
+  document.getElementById('onboard-local-badge').innerHTML = mk(modeHasKey('local'), 'on this machine');
+  document.getElementById('onboard-cloud-badge').innerHTML = mk(modeHasKey('cloud'), 'in this browser');
 }
 
 async function completeOnboarding() {
@@ -770,7 +830,7 @@ async function completeOnboarding() {
     if (!check.env_exists) {
       selectOnboardMode('cloud');
       const note = document.getElementById('onboard-footer-note');
-      note.textContent = '⚠ No local config file found. Switched to cloud mode — your API key is managed externally.';
+      note.textContent = '⚠ No local config file found. Switched to shared-server mode — your API key will stay in this browser tab.';
       note.style.color = 'var(--amber)';
       return;
     }
@@ -780,14 +840,19 @@ async function completeOnboarding() {
   localStorage.setItem('cw_mode', mode);
   localStorage.setItem('cw_onboarded', '1');
   document.getElementById('onboard-overlay').classList.add('hidden');
-  if (mode === 'local' && !S.settings.api_key_set) openSettings();
+  // Both modes need a key before anything can run; only the storage differs.
+  if (!hasUsableKey()) openSettings();
   await continueInit();
 }
 
-function launchWizard() {
+async function launchWizard() {
   localStorage.removeItem('cw_onboarded');
   localStorage.removeItem('cw_mode');
   S.onboardMode = null;
+  // Re-check rather than trusting the boot-time result: a key may have been
+  // added or deleted since, and stale badges are worse than none.
+  S.onboardStatus = await api('GET', '/api/onboarding').catch(() => S.onboardStatus);
+  renderOnboardBadges();
   document.getElementById('onboard-card-local').classList.remove('selected');
   document.getElementById('onboard-card-cloud').classList.remove('selected');
   document.getElementById('onboard-continue-btn').disabled = true;
@@ -810,14 +875,12 @@ async function init() {
 
     if (localStorage.getItem('cw_onboarded')) {
       S.deploymentMode = localStorage.getItem('cw_mode') || 'local';
-      if (S.deploymentMode === 'local' && !S.settings.api_key_set) openSettings();
+      if (!hasUsableKey()) openSettings();
       await continueInit();
     } else {
-      const status = await api('GET', '/api/onboarding').catch(() => ({ deployment_mode: 'local', key_configured: false }));
-      const badge = document.getElementById('onboard-cloud-badge');
-      badge.innerHTML = status.key_configured
-        ? '<span class="onboard-badge ok">✓ API key detected</span>'
-        : '<span class="onboard-badge warn">⚠ No API key configured</span>';
+      const status = await api('GET', '/api/onboarding').catch(() => ({ deployment_mode: 'local' }));
+      S.onboardStatus = status;
+      renderOnboardBadges();
       selectOnboardMode(status.deployment_mode || 'local');
       document.getElementById('onboard-overlay').classList.remove('hidden');
     }
@@ -1387,24 +1450,27 @@ function openSettings() {
   document.getElementById('delete-confirm').style.display = 'none';
 
   const isCloud = S.deploymentMode === 'cloud';
-  const hasKey = S.settings && S.settings.api_key_set;
+  const byok = BYOK.get();
+  // Cloud keeps the same form as local — both modes are bring-your-own-key.
+  // Only the destination differs: .env on disk locally, this tab's memory in
+  // the cloud. The notice explains that difference.
+  const hasKey = isCloud ? !!(byok && byok.api_key) : !!(S.settings && S.settings.api_key_set);
 
-  // Toggle cloud notice vs normal form
   document.getElementById('cloud-mode-notice').classList.toggle('hidden', !isCloud);
   document.getElementById('settings-modal-intro').style.display = isCloud ? 'none' : '';
   document.querySelectorAll('#settings-modal .form-group').forEach(el => {
-    el.style.display = isCloud ? 'none' : '';
+    el.style.display = '';
   });
   document.getElementById('modal-save-btn').textContent = 'Save and continue';
-  document.getElementById('modal-save-btn').style.display = isCloud ? 'none' : '';
-  document.getElementById('delete-key-btn').style.display = (!isCloud && hasKey) ? 'block' : 'none';
+  document.getElementById('modal-save-btn').style.display = '';
+  document.getElementById('delete-key-btn').style.display = hasKey ? 'block' : 'none';
 
-  if (isCloud && S.settings) {
-    document.getElementById('cloud-notice-provider').textContent = S.settings.provider || '—';
-    document.getElementById('cloud-notice-model').textContent = S.settings.text_model || '—';
-  } else {
-    if (S.settings) updateSettingsModal(S.settings);
-    if (hasKey) loadModels(S.settings.provider || 'openai', '');
+  const current = isCloud ? (byok || {}) : S.settings;
+  if (current) updateSettingsModal(isCloud ? { ...current, api_key_set: hasKey } : current);
+  // Second argument is the API key, not the model. Local sends '' so the
+  // server falls back to .env; cloud has no server key and must send its own.
+  if (hasKey) {
+    loadModels((current && current.provider) || 'openai', isCloud ? (byok && byok.api_key) || '' : '');
   }
 }
 
@@ -1425,7 +1491,13 @@ function cancelDeleteKey() {
 async function confirmDeleteKey() {
   const errEl = document.getElementById('modal-error');
   try {
-    S.settings = await api('DELETE', '/api/settings/key');
+    if (S.deploymentMode === 'cloud') {
+      // Nothing server-side to delete: the key only ever existed in this tab.
+      BYOK.clear();
+      S.settings = { provider: null, api_key_set: false, api_key_preview: null };
+    } else {
+      S.settings = await api('DELETE', '/api/settings/key');
+    }
     closeSettings();
     document.getElementById('s-api-key').value = '';
     updateSettingsModal(S.settings);
@@ -1455,7 +1527,11 @@ async function saveSettings() {
   const saveBtn = document.getElementById('modal-save-btn');
   errEl.style.display = 'none';
 
-  const hasExistingKey = S.settings && S.settings.api_key_set;
+  const isCloud = S.deploymentMode === 'cloud';
+  const existingByok = BYOK.get();
+  const hasExistingKey = isCloud
+    ? !!(existingByok && existingByok.api_key)
+    : !!(S.settings && S.settings.api_key_set);
   if (!apiKey && !hasExistingKey) {
     errEl.textContent = 'An API key is required.';
     errEl.style.display = 'block';
@@ -1498,12 +1574,27 @@ async function saveSettings() {
     return;
   }
   try {
-    S.settings = await api('POST', '/api/settings', {
-      provider,
-      api_key: apiKey,
-      text_model: textModel,
-      vision_model: textModel,
-    });
+    if (isCloud) {
+      // Never POST the key to the server in cloud mode: /api/settings writes
+      // to .env, which on a shared instance would hand one analyst's key to
+      // everyone else who opens the app.
+      const key = apiKey || (existingByok && existingByok.api_key) || '';
+      BYOK.set({ provider, api_key: key, text_model: textModel, vision_model: textModel });
+      S.settings = {
+        provider,
+        api_key_set: true,
+        api_key_preview: key.length > 8 ? key.slice(0, 6) + '••••••••' + key.slice(-4) : '••••••••',
+        text_model: textModel,
+        vision_model: textModel,
+      };
+    } else {
+      S.settings = await api('POST', '/api/settings', {
+        provider,
+        api_key: apiKey,
+        text_model: textModel,
+        vision_model: textModel,
+      });
+    }
     testedKey = null;
     closeSettings();
     document.getElementById('s-api-key').value = '';

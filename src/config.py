@@ -79,6 +79,34 @@ def delete_api_key():
     load_dotenv(ENV_FILE, override=True)
 
 
+def resolve_settings(supplied: dict | None = None) -> dict:
+    """Credentials for a single request.
+
+    Cloud deployments are bring-your-own-key: the analyst's key arrives with
+    the request, is used for that call, and is never written down. The server
+    holds no key of its own, so an unauthenticated instance can't spend the
+    operator's credit, and one analyst's key can't serve another's request.
+
+    Local runs read .env as before, where the operator and the analyst are the
+    same person.
+
+    documents_dir is always server-side. Letting a caller supply it would turn
+    a settings field into arbitrary filesystem read.
+    """
+    if get_deployment_mode() != "cloud":
+        return get_raw_settings()
+
+    supplied = supplied or {}
+    text_model = supplied.get("text_model") or "gpt-4.1-mini"
+    return {
+        "provider": (supplied.get("provider") or "").lower().strip(),
+        "api_key": supplied.get("api_key") or "",
+        "text_model": text_model,
+        "vision_model": supplied.get("vision_model") or text_model,
+        "documents_dir": os.getenv("DOCUMENTS_DIR", "") or str(BASE_DIR / "data" / "documents"),
+    }
+
+
 def get_deployment_mode() -> str:
     """Return 'cloud' or 'local'. Operators set DEPLOYMENT_MODE=cloud in ACA env vars."""
     return os.getenv("DEPLOYMENT_MODE", "local").lower()

@@ -72,9 +72,24 @@ def _case_summary(case: dict) -> dict:
 
 
 @traced_action(action="case.analyse", kind="app", actor="user", project="casewright")
-def _run_analysis(case_id: str) -> tuple[dict, int]:
+def _caller_settings() -> dict:
+    """Resolve credentials for this request.
+
+    In cloud mode the analyst's own key rides in on headers rather than being
+    read from the server's environment. Headers rather than the JSON body so
+    every endpoint resolves credentials the same way, whether or not it takes
+    a body.
+    """
+    return cfg.resolve_settings({
+        "provider": request.headers.get("X-LLM-Provider"),
+        "api_key": request.headers.get("X-LLM-Key"),
+        "text_model": request.headers.get("X-LLM-Text-Model"),
+        "vision_model": request.headers.get("X-LLM-Vision-Model"),
+    })
+
+
+def _run_analysis(case_id: str, settings: dict) -> tuple[dict, int]:
     trace = active()
-    settings = cfg.get_raw_settings()
     case = get_case(case_id)
     if not case:
         raise ValueError(f"Case {case_id} not found.")
@@ -194,10 +209,16 @@ def index():
 @app.route("/api/onboarding", methods=["GET"])
 def onboarding_status():
     raw = cfg.get_raw_settings()
+    mode = cfg.get_deployment_mode()
+    # key_configured describes the server's own .env, which only exists in a
+    # local run. Reporting it in cloud mode was the source of a wrong signal:
+    # a developer's local .env lit up "API key detected" on the cloud card,
+    # describing their own machine rather than the deployment. Cloud is
+    # bring-your-own-key, so there is nothing on the server to detect.
     return jsonify({
-        "deployment_mode": cfg.get_deployment_mode(),
-        "key_configured": bool(raw.get("api_key")),
-        "provider": raw.get("provider") or None,
+        "deployment_mode": mode,
+        "key_configured": bool(raw.get("api_key")) if mode != "cloud" else False,
+        "provider": (raw.get("provider") or None) if mode != "cloud" else None,
         "env_exists": cfg.env_file_exists(),
     })
 
@@ -230,7 +251,10 @@ def test_settings():
 
     # Fall back to the saved key if the caller didn't supply one
     if not api_key:
-        raw = cfg.get_raw_settings()
+        # resolve_settings, not get_raw_settings: in cloud mode there is no
+        # server-side key to fall back to, and reaching for one would let a
+        # keyless caller spend the operator's credit.
+        raw = cfg.resolve_settings()
         api_key = raw.get("api_key", "")
         if not provider:
             provider = raw.get("provider", "")
@@ -285,7 +309,10 @@ def list_models():
     api_key = (body.get("api_key") or "").strip()
 
     if not api_key:
-        raw = cfg.get_raw_settings()
+        # resolve_settings, not get_raw_settings: in cloud mode there is no
+        # server-side key to fall back to, and reaching for one would let a
+        # keyless caller spend the operator's credit.
+        raw = cfg.resolve_settings()
         api_key = raw.get("api_key", "")
         if not provider:
             provider = raw.get("provider", "")
@@ -440,7 +467,7 @@ def analyze_case(case_id):
         _running.add(case_id)
     log_event("analysis_start", {"case_id": case_id})
     try:
-        workup, tokens = _run_analysis(case_id)
+        workup, tokens = _run_analysis(case_id, _caller_settings())
         log_event("analysis_complete", {
             "case_id": case_id,
             "action": workup.get("recommended_action"),
