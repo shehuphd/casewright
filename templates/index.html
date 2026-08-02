@@ -550,7 +550,7 @@
       <div class="onboard-card" id="onboard-card-cloud" onclick="selectOnboardMode('cloud')">
         <div class="onboard-card-icon">🌐</div>
         <h3>Running on a shared server</h3>
-        <p>This instance is hosted somewhere (e.g. Azure, a company server). You'll use your own API key. It's kept in this browser tab only, sent with each analysis, and never saved on the server.</p>
+        <p>This instance is hosted somewhere (e.g. Azure, a company server). You'll use your own API key. It's kept in this browser only, sent with each analysis, never saved on the server, and auto-deleted after 7 days.</p>
         <div id="onboard-cloud-badge"></div>
       </div>
 
@@ -563,7 +563,7 @@
 </div>
 
 <!-- Settings modal -->
-<div id="modal-overlay" class="hidden" onclick="if(event.target===this)closeSettings()">
+<div id="modal-overlay" class="hidden" onclick="handleModalOverlayClick(event)">
   <div id="settings-modal">
     <h2>API Configuration</h2>
     <p id="settings-modal-intro">Enter your OpenAI or Anthropic API key to enable case analysis. Your key is saved locally to <code>.env</code> and never sent anywhere except the LLM provider.</p>
@@ -574,11 +574,19 @@
       <div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:6px">🌐 Bring your own key</div>
       <div style="font-size:13px;color:var(--text-4);line-height:1.55">
         This is a shared deployment, so you supply your own API key and your own usage is billed to you.
-        The key is held in this browser tab only and is cleared when you close it. It's never written to the server.
+        The key is held in this browser only — never on the server — and is automatically deleted after
+        <strong id="cloud-notice-expiry-days">7</strong> days. Delete it sooner any time with the button below,
+        or by clearing this site's data in your browser settings.
       </div>
+      <div id="cloud-notice-saved-info" style="font-size:12px;color:var(--text-5);margin-top:8px"></div>
       <div style="font-size:12px;color:var(--text-5);line-height:1.5;margin-top:10px">
         Casewright reads your documents and calls the model server-side, so your key does pass through this
         server on each analysis. Only use a key you're willing to send to whoever operates this instance.
+      </div>
+      <div style="font-size:12px;color:var(--text-5);line-height:1.5;margin-top:10px">
+        Don't have a key? Get one from
+        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--text-3)">OpenAI</a> or
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style="color:var(--text-3)">Anthropic</a>.
       </div>
       <div style="margin-top:14px">
         <button onclick="resetOnboarding()" style="background:none;border:none;color:var(--text-5);font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Switch to local mode</button>
@@ -688,17 +696,37 @@ const S = {
 let rationaleTimer = null;
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
-/* Cloud deployments are bring-your-own-key. The key lives in sessionStorage
-   so it dies with the tab rather than persisting on a shared machine, and it
-   is sent per-request instead of being saved server-side, where it would be
-   one instance's key spending on behalf of everyone who found the URL. */
+/* Cloud deployments are bring-your-own-key. The key lives in this browser's
+   localStorage — not the server, where it would be one instance's key
+   spending on behalf of everyone who found the URL — and is sent per-request
+   as a header, never persisted server-side. localStorage rather than
+   sessionStorage so it survives closing the tab: someone demoing this to a
+   colleague the next day shouldn't have to re-enter it. The tradeoff is a
+   forgotten key sitting on a shared machine indefinitely, so every saved key
+   carries an expiry and is dropped automatically once it's stale. */
+const BYOK_EXPIRY_DAYS = 7;
+const BYOK_EXPIRY_MS = BYOK_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+
 const BYOK = {
   get() {
-    try { return JSON.parse(sessionStorage.getItem('cw_byok') || 'null'); }
+    let v;
+    try { v = JSON.parse(localStorage.getItem('cw_byok') || 'null'); }
     catch { return null; }
+    if (!v || !v.savedAt) return null;
+    if (Date.now() - v.savedAt > BYOK_EXPIRY_MS) {
+      this.clear();
+      return null;
+    }
+    return v;
   },
-  set(v) { sessionStorage.setItem('cw_byok', JSON.stringify(v)); },
-  clear() { sessionStorage.removeItem('cw_byok'); },
+  set(v) { localStorage.setItem('cw_byok', JSON.stringify({ ...v, savedAt: Date.now() })); },
+  clear() { localStorage.removeItem('cw_byok'); },
+  daysRemaining() {
+    const raw = (() => { try { return JSON.parse(localStorage.getItem('cw_byok') || 'null'); } catch { return null; } })();
+    if (!raw || !raw.savedAt) return null;
+    const msLeft = BYOK_EXPIRY_MS - (Date.now() - raw.savedAt);
+    return Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+  },
 };
 
 function byokHeaders() {
@@ -794,10 +822,10 @@ function selectOnboardMode(mode) {
   note.textContent = modeHasKey(mode)
     ? (mode === 'local'
         ? 'A key is already saved on this machine. Continue to start working.'
-        : 'A key is already saved in this browser tab. Continue to start working.')
+        : 'A key is already saved in this browser. Continue to start working.')
     : (mode === 'local'
         ? 'You\'ll enter your API key on the next screen. It\'s saved to a file on this machine.'
-        : 'You\'ll enter your API key on the next screen. It stays in this browser tab.');
+        : 'You\'ll enter your API key on the next screen. It stays in this browser, auto-deleted after 7 days.');
 }
 
 /* Does the given mode already have a usable key? Local keys live in the
@@ -830,7 +858,7 @@ async function completeOnboarding() {
     if (!check.env_exists) {
       selectOnboardMode('cloud');
       const note = document.getElementById('onboard-footer-note');
-      note.textContent = '⚠ No local config file found. Switched to shared-server mode — your API key will stay in this browser tab.';
+      note.textContent = '⚠ No local config file found. Switched to shared-server mode — your API key will stay in this browser, auto-deleted after 7 days.';
       note.style.color = 'var(--amber)';
       return;
     }
@@ -1443,18 +1471,39 @@ async function loadModels(provider, apiKey) {
   }
 }
 
+let modalOverlayShownAt = 0;
+
+/* iOS Safari can fire a synthetic click ~300ms after a real touch. When this
+   modal is opened programmatically right after another modal closes (the
+   forced Settings prompt during onboarding), that ghost click lands on the
+   new overlay's backdrop in the same screen position and dismisses it before
+   it's ever seen. Ignore backdrop clicks in the first moment after opening. */
+function handleModalOverlayClick(event) {
+  if (event.target !== event.currentTarget) return;
+  if (Date.now() - modalOverlayShownAt < 400) return;
+  closeSettings();
+}
+
 function openSettings() {
   testedKey = null;
   document.getElementById('modal-overlay').classList.remove('hidden');
+  modalOverlayShownAt = Date.now();
   document.getElementById('modal-error').style.display = 'none';
   document.getElementById('delete-confirm').style.display = 'none';
 
   const isCloud = S.deploymentMode === 'cloud';
   const byok = BYOK.get();
   // Cloud keeps the same form as local — both modes are bring-your-own-key.
-  // Only the destination differs: .env on disk locally, this tab's memory in
-  // the cloud. The notice explains that difference.
+  // Only the destination differs: .env on disk locally, this browser's
+  // localStorage in the cloud. The notice explains that difference.
   const hasKey = isCloud ? !!(byok && byok.api_key) : !!(S.settings && S.settings.api_key_set);
+
+  if (isCloud) {
+    const days = BYOK.daysRemaining();
+    document.getElementById('cloud-notice-expiry-days').textContent = BYOK_EXPIRY_DAYS;
+    document.getElementById('cloud-notice-saved-info').textContent =
+      days === null ? '' : (days === 0 ? 'Expires today.' : `Expires in ${days} day${days === 1 ? '' : 's'}.`);
+  }
 
   document.getElementById('cloud-mode-notice').classList.toggle('hidden', !isCloud);
   document.getElementById('settings-modal-intro').style.display = isCloud ? 'none' : '';
