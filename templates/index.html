@@ -573,23 +573,22 @@
     <div id="cloud-mode-notice" class="hidden" style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:10px;padding:16px 18px;margin-bottom:20px">
       <div style="font-size:13px;font-weight:600;color:var(--text-2);margin-bottom:6px">🌐 Bring your own key</div>
       <div style="font-size:13px;color:var(--text-4);line-height:1.55">
-        This is a shared deployment, so you supply your own API key and your own usage is billed to you.
-        The key is held in this browser only — never on the server — and is automatically deleted after
-        <strong id="cloud-notice-expiry-days">7</strong> days. Delete it sooner any time with the button below,
-        or by clearing this site's data in your browser settings.
+        This is a demo instance. Casewright needs an API key to process the supplied cases using AI. Please use
+        a key created specifically for this demo, avoid sharing it publicly, and delete or rotate it afterwards.
+        Your API key is stored only in this browser, and is deleted automatically after
+        <strong id="cloud-notice-expiry-days">7</strong> days. Delete it sooner by clearing this site's data in
+        your browser settings at any time.
       </div>
       <div id="cloud-notice-saved-info" style="font-size:12px;color:var(--text-5);margin-top:8px"></div>
       <div style="font-size:12px;color:var(--text-5);line-height:1.5;margin-top:10px">
-        Casewright reads your documents and calls the model server-side, so your key does pass through this
-        server on each analysis. Only use a key you're willing to send to whoever operates this instance.
-      </div>
-      <div style="font-size:12px;color:var(--text-5);line-height:1.5;margin-top:10px">
-        Don't have a key? Get one from
+        Don't have an API key? Get one from
         <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--text-3)">OpenAI</a> or
         <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" style="color:var(--text-3)">Anthropic</a>.
+        Please note that you're responsible for any billed usage.
       </div>
-      <div style="margin-top:14px">
+      <div style="margin-top:14px;display:flex;gap:18px;align-items:center">
         <button onclick="resetOnboarding()" style="background:none;border:none;color:var(--text-5);font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Switch to local mode</button>
+        <button onclick="promptDeleteKey()" style="background:none;border:none;color:var(--red);font-size:12px;cursor:pointer;padding:0;text-decoration:underline">Delete existing API keys</button>
       </div>
     </div>
     <div class="form-group">
