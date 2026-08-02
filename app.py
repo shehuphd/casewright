@@ -243,6 +243,33 @@ def get_settings():
     return jsonify(cfg.get_settings())
 
 
+def _friendly_provider_error(e: Exception) -> str:
+    """Translate an OpenAI/Anthropic SDK exception into a message worth
+    showing an analyst. The raw exception text includes the provider's own
+    redacted-key rendering (a run of 60+ asterisks) and a Python dict repr of
+    the error body — accurate, but unreadable in a small error box. Matched
+    by exception class rather than status code parsing, since both SDKs
+    already classify these consistently.
+    """
+    import openai
+    import anthropic
+
+    if isinstance(e, (openai.AuthenticationError, anthropic.AuthenticationError)):
+        return "That API key was rejected by the provider. Double-check it's correct and try again."
+    if isinstance(e, (openai.PermissionDeniedError, anthropic.PermissionDeniedError)):
+        return "This key doesn't have permission to do that. Check its access on the provider's dashboard."
+    if isinstance(e, (openai.RateLimitError, anthropic.RateLimitError)):
+        return "The provider is rate-limiting this key right now. Wait a moment and try again."
+    if isinstance(e, anthropic.OverloadedError):
+        return "The provider is overloaded right now. Try again in a moment."
+    if isinstance(e, (openai.APIConnectionError, anthropic.APIConnectionError,
+                      openai.APITimeoutError, anthropic.APITimeoutError)):
+        return "Could not reach the provider. Check your connection and try again."
+    if isinstance(e, (openai.InternalServerError, anthropic.InternalServerError)):
+        return "The provider is having issues right now. Try again in a moment."
+    return "Could not verify this key. Try again, or check the provider's status page."
+
+
 @app.route("/api/settings/test", methods=["POST"])
 def test_settings():
     body = request.get_json(force=True)
@@ -274,11 +301,13 @@ def test_settings():
         log_event("key_test", {"provider": provider, "valid": True})
         return jsonify({"valid": True})
     except Exception as e:
-        msg = getattr(e, "message", None) or str(e)
-        if not isinstance(msg, str):
-            msg = str(msg)
-        log_event("key_test", {"provider": provider, "valid": False, "error": msg[:200]}, level="warn")
-        return jsonify({"valid": False, "error": msg})
+        # The raw message is logged in full for debugging; the analyst only
+        # ever sees the translated version.
+        raw_msg = getattr(e, "message", None) or str(e)
+        if not isinstance(raw_msg, str):
+            raw_msg = str(raw_msg)
+        log_event("key_test", {"provider": provider, "valid": False, "error": raw_msg[:200]}, level="warn")
+        return jsonify({"valid": False, "error": _friendly_provider_error(e)})
 
 
 @app.route("/api/settings/key", methods=["DELETE"])

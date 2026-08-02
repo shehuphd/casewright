@@ -49,6 +49,14 @@
       font-size: 14px;
       line-height: 1.5;
       height: 100vh;
+      /* 100vh on iOS Safari is measured against the browser chrome's
+         collapsed state, not what's actually visible — with the address bar
+         showing, the real viewport is shorter, so the layout computes taller
+         than the screen and the sticky header misaligns against content as
+         the chrome animates. 100dvh tracks the current viewport instead;
+         kept as an override so browsers without dvh support keep the vh
+         fallback above. */
+      height: 100dvh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
@@ -1593,15 +1601,20 @@ async function saveSettings() {
     try {
       const test = await api('POST', '/api/settings/test', { provider, api_key: apiKey });
       if (!test.valid) {
-        errEl.textContent = 'Key rejected by provider: ' + test.error;
+        // The server already returns a short, complete sentence — no prefix needed.
+        errEl.textContent = test.error;
         errEl.style.display = 'block';
+        document.getElementById('s-api-key').value = '';
+        testedKey = null;
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save and continue';
         return;
       }
     } catch (e) {
-      errEl.textContent = 'Could not reach provider: ' + e.message;
+      errEl.textContent = 'Could not verify the key right now. Check your connection and try again.';
       errEl.style.display = 'block';
+      document.getElementById('s-api-key').value = '';
+      testedKey = null;
       saveBtn.disabled = false;
       saveBtn.textContent = 'Save and continue';
       return;
