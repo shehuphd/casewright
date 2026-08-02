@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Casewright v1.0.0 — Linux / Windows (Git Bash or WSL) launcher
+# Casewright v1.0.1 — Linux / Windows (Git Bash or WSL) launcher
 # Author: Mo Shehu — mohammedshehu.com
 cd "$(dirname "$0")" || exit 1
 
@@ -18,10 +18,33 @@ if [ -z "$PYTHON" ]; then
   exit 1
 fi
 
-# ── Virtual environment (created only if absent) ───────────────────────────────
+# ── Virtual environment (validated, not just checked for existence) ────────────
+venv_python() {
+  # Unix layout vs. Windows (Git Bash) layout — try both.
+  if [ -x ".venv/bin/python" ]; then echo ".venv/bin/python";
+  elif [ -x ".venv/Scripts/python.exe" ]; then echo ".venv/Scripts/python.exe";
+  else echo ""; fi
+}
+
+venv_is_broken() {
+  # A venv only counts as valid if its own python actually runs. Catches a
+  # stale interpreter path left over from a different machine or account —
+  # e.g. a venv synced via Dropbox from a machine with a different Python
+  # install — or a build that got interrupted before completion.
+  local vp; vp="$(venv_python)"
+  [ -z "$vp" ] || ! "$vp" --version &>/dev/null
+}
+
+if [ -d ".venv" ] && venv_is_broken; then
+  echo "Existing virtual environment is broken (stale interpreter path). Rebuilding..."
+  rm -rf .venv
+fi
+
 if [ ! -d ".venv" ]; then
   echo "First run: creating virtual environment..."
   "$PYTHON" -m venv .venv
+  # ensurepip explicitly, since venv creation can silently skip bundling pip
+  "$(venv_python)" -m ensurepip --upgrade &>/dev/null
 fi
 
 # Activate — path differs between Unix and Windows (Git Bash)
@@ -35,7 +58,12 @@ fi
 
 # ── Dependencies ───────────────────────────────────────────────────────────────
 echo "Checking dependencies..."
-pip install -q -r requirements.txt
+# Routed through $PYTHON explicitly rather than a bare `pip` on PATH: after
+# activation `pip` almost always resolves correctly, but a shell with a
+# shadowing pip earlier in PATH (pyenv shims, a corporate image, a personal
+# alias) would silently install into the wrong environment. -m pip ties the
+# install to the exact interpreter this script already resolved.
+"$PYTHON" -m pip install -q -r requirements.txt
 
 # ── Find a free port starting at 5050 (portable: uses Python) ─────────────────
 PORT=5050

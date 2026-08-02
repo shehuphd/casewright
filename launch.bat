@@ -1,5 +1,5 @@
 @echo off
-:: Casewright v1.0.0 — Windows launcher (double-click in Explorer)
+:: Casewright v1.0.1 — Windows launcher (double-click in Explorer)
 :: Author: Mo Shehu — mohammedshehu.com
 cd /d "%~dp0"
 
@@ -11,17 +11,34 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: ── Virtual environment (created only if absent) ───────────────────────────────
+:: ── Virtual environment (validated, not just checked for existence) ────────────
+:: A venv only counts as valid if its own python actually runs. Catches a
+:: stale interpreter path left over from a different machine, a venv folder
+:: copied/synced from elsewhere, or a build interrupted before completion.
+if exist ".venv\Scripts\python.exe" (
+    ".venv\Scripts\python.exe" --version >nul 2>&1
+    if errorlevel 1 (
+        echo Existing virtual environment is broken. Rebuilding...
+        rmdir /s /q ".venv"
+    )
+)
+
 if not exist ".venv\" (
     echo First run: creating virtual environment...
     python -m venv .venv
+    :: ensurepip explicitly, since venv creation can silently skip bundling pip
+    ".venv\Scripts\python.exe" -m ensurepip --upgrade >nul 2>&1
 )
 
 call .venv\Scripts\activate.bat
 
 :: ── Dependencies ───────────────────────────────────────────────────────────────
 echo Checking dependencies...
-pip install -q -r requirements.txt
+:: Routed through -m pip rather than a bare `pip` on PATH: after activation
+:: `pip` almost always resolves correctly, but any shell/PATH oddity that
+:: shadows it would silently install into the wrong environment. -m pip ties
+:: the install to the exact interpreter this script is using.
+python -m pip install -q -r requirements.txt
 
 :: ── Find a free port starting at 5050 ─────────────────────────────────────────
 (
