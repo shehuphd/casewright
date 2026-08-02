@@ -1,5 +1,5 @@
 @echo off
-:: Casewright v1.0.1 — Windows launcher (double-click in Explorer)
+:: Casewright v1.1.0 — Windows launcher (double-click in Explorer)
 :: Author: Mo Shehu — mohammedshehu.com
 cd /d "%~dp0"
 

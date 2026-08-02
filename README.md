@@ -1,6 +1,6 @@
 # Casewright
 
-**Version 1.0.1** · Built by [Mo Shehu](https://mohammedshehu.com)
+**Version 1.1.0** · Built by [Mo Shehu](https://mohammedshehu.com)
 
 A lightweight chargeback representment workbench. Takes a chargeback case, reads the relevant scheme reason-code rules, reviews attached merchant evidence, and produces an analyst-ready workup with a recommendation and evidence checklist.
 
@@ -64,6 +64,21 @@ To reset all generated workups without losing case data:
 python reset_outputs.py
 ```
 
+## Deployment modes
+
+Casewright runs in one of two modes, detected automatically on first launch and switchable at any time from the ✦ wizard icon next to the app title.
+
+**Local** — you're running Casewright on your own machine. Your API key is written to `.env` and never leaves it.
+
+**Cloud** — you're opening a Casewright instance someone else deployed (e.g. on Azure Container Apps). Cloud deployments are **bring-your-own-key**: the operator does not supply a key, and no key is ever stored on the server. Instead:
+
+- Your key is entered once and kept in your browser's `localStorage`, sent as a request header on each analysis, and never written to disk server-side.
+- It's automatically deleted after 7 days. Delete it sooner with the **Delete existing API keys** button in Settings, or by clearing this site's data in your browser.
+- Casewright still reads your documents and calls the model server-side, so your key does pass through whichever server hosts the deployment on each analysis — use a key you're comfortable sending to that instance, ideally one created specifically for this purpose, and rotate or delete it afterwards.
+- You're responsible for any billed usage on the key you supply.
+
+Get a key from [OpenAI](https://platform.openai.com/api-keys) or [Anthropic](https://console.anthropic.com/settings/keys) if you don't have one.
+
 ## Project structure
 
 ```
@@ -110,7 +125,7 @@ Traces are written to `logs/traces.jsonl`. The **Audit trail** button is in the 
 
 The viewer is mounted under `/audit-viewer` on Casewright's own port and reverse-proxied through the app, so there's no second port to open. It runs token-gated: the token stays in the Casewright process and is injected by the proxy, so the browser never carries it and no other user on the machine can read case traces off the viewer's port.
 
-In cloud mode the proxy is closed and the button becomes **Download traces**, which serves `logs/traces.jsonl` as a file. Run `traceact view` on the downloaded file to inspect it locally.
+In cloud mode the button is disabled: neither the viewer proxy nor the trace file is reachable through the UI or the API. Cloud deployments have no authentication of their own, so exposing case-level traces to anyone with the URL isn't safe by default.
 
 You can also explore traces from the command line:
 
@@ -127,7 +142,7 @@ log = TraceLog("logs/traces.jsonl")
 log.filter(action="case.analyse", status="failed").render_table()
 ```
 
-API keys and other credentials are redacted before anything is written. Traces still contain case data, so the viewer binds to localhost only and the proxy refuses to serve it in cloud mode. Casewright has no authentication of its own: put auth in front of it before exposing a cloud deployment, since the trace download is reachable by anyone with the URL.
+API keys and other credentials are redacted before anything is written. Traces still contain case data, so the viewer binds to localhost only and both the proxy and the download endpoint refuse to serve in cloud mode. Casewright has no authentication of its own: put auth in front of it before exposing a cloud deployment if trace access is needed there too.
 
 ## LLM output
 

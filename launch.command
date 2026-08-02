@@ -1,5 +1,5 @@
 #!/bin/bash
-# Casewright v1.0.1 — macOS launcher (double-click in Finder)
+# Casewright v1.1.0 — macOS launcher (double-click in Finder)
 # Author: Mo Shehu — mohammedshehu.com
 cd "$(dirname "$0")"
 

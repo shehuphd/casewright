@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Casewright v1.0.1 — Linux / Windows (Git Bash or WSL) launcher
+# Casewright v1.1.0 — Linux / Windows (Git Bash or WSL) launcher
 # Author: Mo Shehu — mohammedshehu.com
 cd "$(dirname "$0")" || exit 1
 
